@@ -8,48 +8,100 @@ import platform
 import datetime
 import queue
 import sys
+import math
+from PIL import Image, ImageTk, ImageDraw, ImageFilter
 
-APP_NAME = "CoreTune"
+APP_NAME    = "CoreTune"
 APP_VERSION = "2.0.0"
-APP_SUBTITLE = "Suite di Ottimizzazione Sistema — Aura Studio"
+APP_SUBTITLE = "Suite di Ottimizzazione Sistema"
 SCRIPTS_PATH = "scripts"
 
-# ─── Color Palette ────────────────────────────────────────────────────────────
-BG_BASE        = "#f3f3f3"
-BG_PANEL       = "#ffffff"
-BG_SIDEBAR     = "#202020"
-BG_SIDEBAR_HV  = "#2d2d2d"
-BG_HEADER      = "#0067c0"
-BG_CARD        = "#fafafa"
-BG_CARD_DARK   = "#efefef"
-ACCENT         = "#0067c0"
-ACCENT_HOVER   = "#0078d4"
-ACCENT_LIGHT   = "#cce4f7"
-DANGER         = "#c42b1c"
-DANGER_HOVER   = "#d13438"
-SUCCESS        = "#107c10"
-WARNING        = "#ca5010"
-TEXT_PRIMARY   = "#1a1a1a"
-TEXT_SECONDARY = "#5c5c5c"
-TEXT_TERTIARY  = "#999999"
-TEXT_ON_DARK   = "#ffffff"
-TEXT_ON_DARK2  = "#cccccc"
-BORDER         = "#e0e0e0"
-BORDER_DARK    = "#c8c8c8"
-STATUSBAR_BG   = "#f0f0f0"
+# ─── Wintoys-inspired dark glass palette ──────────────────────────────────────
+BG_ROOT         = "#0d0d0d"
+BG_SIDEBAR      = "#111111"
+BG_SIDEBAR_ITEM = "#1a1a1a"
+BG_SIDEBAR_SEL  = "#1f1f1f"
+BG_MAIN         = "#141414"
+BG_CARD         = "#1c1c1c"
+BG_CARD_HOVER   = "#232323"
+BG_CARD_BORDER  = "#2a2a2a"
+BG_HEADER_CARD  = "#181818"
+GLASS_BG        = "#1a1a1a"
+GLASS_BORDER    = "#333333"
 
-FONT_HEADING = ("Segoe UI", 10, "bold")
+ACCENT          = "#0078d4"
+ACCENT2         = "#60cdff"
+ACCENT_GLOW     = "#0067c0"
+ACCENT_LIGHT    = "#1e3a5f"
+ACCENT_HOVER    = "#106ebe"
+DANGER          = "#c42b1c"
+DANGER_SOFT     = "#3d1210"
+SUCCESS         = "#0f7b0f"
+SUCCESS_SOFT    = "#0c2e0c"
+SUCCESS_TEXT    = "#6ccb5f"
+WARNING         = "#9d5d00"
+WARNING_TEXT    = "#f0a742"
+INFO_TEXT       = "#60cdff"
+
+TEXT_PRIMARY    = "#ffffff"
+TEXT_SECONDARY  = "#9d9d9d"
+TEXT_TERTIARY   = "#666666"
+TEXT_ACCENT     = "#60cdff"
+TEXT_ON_ACCENT  = "#ffffff"
+
+BORDER          = "#2a2a2a"
+BORDER_LIGHT    = "#3a3a3a"
+SEPARATOR       = "#222222"
+
+RADIUS = 15
+
+FONT_TITLE   = ("Segoe UI", 11, "bold")
+FONT_HEADING = ("Segoe UI", 9, "bold")
 FONT_BODY    = ("Segoe UI", 9)
 FONT_SMALL   = ("Segoe UI", 8)
+FONT_TINY    = ("Segoe UI", 7)
+FONT_LARGE   = ("Segoe UI", 22, "bold")
+FONT_XLARGE  = ("Segoe UI", 28, "bold")
 FONT_MONO    = ("Consolas", 8)
+FONT_ICON    = ("Segoe UI", 14)
 
-# ─── Performance Tips ─────────────────────────────────────────────────────────
+# ─── Icons (Unicode) ──────────────────────────────────────────────────────────
+ICONS = {
+    "dashboard":   "⌂",
+    "optimize":    "⚡",
+    "monitor":     "📊",
+    "diagnostics": "🔍",
+    "tips":        "💡",
+    "log":         "📋",
+    "settings":    "⚙",
+    "cpu":         "🔲",
+    "ram":         "🧠",
+    "disk":        "💾",
+    "network":     "🌐",
+    "gpu":         "🖥",
+    "temp":        "🌡",
+    "process":     "⚙",
+    "uptime":      "⏱",
+    "app":         "📦",
+    "service":     "🔧",
+    "clean":       "🧹",
+    "boost":       "🚀",
+    "task":        "📋",
+    "perf":        "⚡",
+    "discord":     "💬",
+    "restart":     "🔄",
+    "feedback":    "💬",
+    "power":       "⏻",
+    "delete":      "🗑️",
+    "download":    "📥",
+}
+
 PERFORMANCE_TIPS = [
     ("CPU",      "Disabilita i programmi di avvio non necessari tramite Gestione attività → scheda Avvio per ridurre il tempo di avvio e il carico della CPU."),
     ("RAM",      "Imposta manualmente la memoria virtuale: Sistema → Avanzate → Impostazioni prestazioni → Avanzate → Cambia. Consigliato: 1.5× la tua RAM."),
     ("Disco",    "Mantieni almeno il 15% del tuo disco di sistema libero. Windows ha bisogno di questo spazio per la memoria virtuale e gli aggiornamenti."),
     ("Rete",     "Disabilita gli aggiornamenti automatici durante le ore di punta tramite Windows Update → Ore attive."),
-    ("Sicurezza", "Esegui una scansione rapida di Windows Defender settimanalmente. La protezione in tempo reale dovrebbe essere sempre ATTIVA."),
+    ("Sicurezza","Esegui una scansione rapida di Windows Defender settimanalmente. La protezione in tempo reale dovrebbe essere sempre ATTIVA."),
     ("CPU",      "Imposta il piano energetico su 'Bilanciato' sui laptop, 'Prestazioni elevate' sui desktop collegati."),
     ("RAM",      "Chiudi le schede del browser che non ti servono — ogni scheda di Chrome/Edge utilizza 50–150 MB di RAM."),
     ("Disco",    "Esegui Pulizia disco mensilmente. Rimuove in sicurezza file di sistema, cache degli aggiornamenti e miniature."),
@@ -60,48 +112,77 @@ PERFORMANCE_TIPS = [
     ("Disco",    "Deframmenta gli HDD mensilmente; non deframmentare mai gli SSD — Windows gestisce gli SSD automaticamente."),
     ("CPU",      "Monitora la temperatura della CPU. Temperature sostenute sopra i 90°C indicano un raffreddamento insufficiente o un carico eccessivo."),
     ("RAM",      "16 GB è il punto ideale per i carichi di lavoro del 2024. 8 GB causa uno swapping costante su Windows moderno."),
-    ("Sicurezza", "Abilita BitLocker sui dispositivi portatili. La perdita di dati per furto è molto più comune del guasto hardware."),
+    ("Sicurezza","Abilita BitLocker sui dispositivi portatili. La perdita di dati per furto è molto più comune del guasto hardware."),
     ("Generale", "Usa Gestione attività (Ctrl+Maiusc+Esc) → scheda Prestazioni per identificare il tuo collo di bottiglia in tempo reale."),
     ("Rete",     "Il DNS può influenzare la velocità di navigazione. Prova Cloudflare (1.1.1.1) o Google (8.8.8.8) per ricerche più veloci."),
     ("Disco",    "Sposta giochi e app di grandi dimensioni su un'unità secondaria per mantenere il tuo SSD di sistema veloce e sano."),
     ("CPU",      "Se non stai giocando, imposta lo stato massimo del processore al 99% — questo previene il calore inutile del turbo boost."),
 ]
 
+APP_CATALOG = {
+    "🌐 Browser": [
+        ("Chrome", "Google.Chrome"), ("Firefox", "Mozilla.Firefox"), ("Brave", "BraveSoftware.BraveBrowser"),
+        ("Edge", "Microsoft.Edge"), ("Opera", "Opera.Opera"), ("Vivaldi", "VivaldiTechnologies.Vivaldi"),
+        ("Tor Browser", "TorProject.TorBrowser"), ("LibreWolf", "LibreWolf.LibreWolf")
+    ],
+    "💻 Sviluppo": [
+        ("VS Code", "Microsoft.VisualStudioCode"), ("Git", "Git.Git"), ("Python 3", "Python.Python.3.12"),
+        ("Node.js", "OpenJS.NodeJS"), ("Docker", "Docker.DockerDesktop"), ("Notepad++", "Notepad++.Notepad++"),
+        ("WinSCP", "WinSCP.WinSCP"), ("Putty", "PuTTY.PuTTY"), ("IntelliJ IDEA", "JetBrains.IntelliJIDEA.Community"),
+        ("PyCharm", "JetBrains.PyCharm.Community"), ("Sublime Text", "SublimeHQ.SublimeText.4")
+    ],
+    "🎬 Media": [
+        ("VLC", "VideoLAN.VLC"), ("Spotify", "Spotify.Spotify"), ("Handbrake", "Handbrake.Handbrake"),
+        ("Audacity", "Audacity.Audacity"), ("OBS Studio", "obsproject.obs-studio"), ("Plex", "Plex.PlexDesktop")
+    ],
+    "🎮 Gaming": [
+        ("Steam", "Valve.Steam"), ("Epic Games", "EpicGames.EpicGamesLauncher"), ("GOG Galaxy", "GOG.Galaxy"),
+        ("Ubisoft", "Ubisoft.Connect"), ("EA App", "ElectronicArts.EADesktop"), ("Battle.net", "Blizzard.BattleNet"),
+        ("Discord", "Discord.Discord"), ("CurseForge", "Overwolf.CurseForge"), ("Discord PTB", "Discord.Discord.PTB")
+    ],
+    "💬 Social": [
+        ("Telegram", "Telegram.TelegramDesktop"), ("WhatsApp", "WhatsApp.WhatsApp"),
+        ("Slack", "Slack.Slack"), ("Zoom", "Zoom.Zoom"), ("Teams", "Microsoft.Teams"),
+        ("Skype", "Microsoft.Skype"), ("Signal", "OpenWhisperSystems.Signal")
+    ],
+    "🛠 Utility": [
+        ("7-Zip", "7zip.7zip"), ("PowerToys", "Microsoft.PowerToys"), ("WinRAR", "RARLab.WinRAR"),
+        ("Lightshot", "Skillbrains.Lightshot"), ("CPU-Z", "CPUID.CPU-Z"), ("Rufus", "Akeo.Rufus"),
+        ("Everything", "voidtools.Everything"), ("BleachBit", "BleachBit.BleachBit"), ("qBittorrent", "qBittorrent.qBittorrent")
+    ]
+}
+
+
 # ─── Script Runner ────────────────────────────────────────────────────────────
-def run_script(script_name, log_callback=None):
+def run_script(script_name, args=None, log_callback=None):
     path = os.path.join(SCRIPTS_PATH, script_name)
     if not os.path.exists(path):
         msg = f"[ATTENZIONE] Script non trovato: {path}"
-        if log_callback:
-            log_callback(msg, "warn")
+        if log_callback: log_callback(msg, "warn")
         return False, msg
     try:
+        cmd = ["powershell", "-ExecutionPolicy", "Bypass", "-File", path]
+        if args:
+            cmd.extend(args)
         result = subprocess.run(
-            ["powershell", "-ExecutionPolicy", "Bypass", "-File", path],
-            capture_output=True, text=True, timeout=120
-        )
-        out = result.stdout.strip()
-        err = result.stderr.strip()
+            cmd,
+            capture_output=True, text=True, timeout=120, encoding='utf-8', errors='replace', creationflags=subprocess.CREATE_NO_WINDOW)
+        out = result.stdout.strip(); err = result.stderr.strip()
         if log_callback:
-            for line in out.splitlines():
-                log_callback(f"  {line}", "info")
-            for line in err.splitlines():
-                log_callback(f"  {line}", "warn")
+            for line in out.splitlines(): log_callback(f"  {line}", "info")
+            for line in err.splitlines(): log_callback(f"  {line}", "warn")
         return result.returncode == 0, out
     except FileNotFoundError:
         msg = "[ERRORE] PowerShell non trovato."
-        if log_callback:
-            log_callback(msg, "error")
+        if log_callback: log_callback(msg, "error")
         return False, msg
     except subprocess.TimeoutExpired:
         msg = f"[ERRORE] Script scaduto: {script_name}"
-        if log_callback:
-            log_callback(msg, "error")
+        if log_callback: log_callback(msg, "error")
         return False, msg
     except Exception as e:
         msg = f"[ERRORE] {e}"
-        if log_callback:
-            log_callback(msg, "error")
+        if log_callback: log_callback(msg, "error")
         return False, msg
 
 
@@ -109,13 +190,14 @@ def run_script(script_name, log_callback=None):
 class SystemMonitor:
     def __init__(self):
         self.running = False
-        self.thread = None
-        self.data = {
+        self.thread  = None
+        self.data    = {
             "cpu": 0.0, "ram": 0.0, "ram_used": 0.0, "ram_total": 0.0,
             "disk": 0.0, "disk_used": 0.0, "disk_total": 0.0,
             "cpu_temp": None, "uptime": "", "processes": 0,
             "cpu_name": platform.processor() or "Unknown CPU",
-        } # "CPU Sconosciuta"
+            "gpu": 0.0,
+        }
         self._callbacks = []
         self._psutil_available = False
         self._try_import_psutil()
@@ -128,117 +210,405 @@ class SystemMonitor:
         except ImportError:
             self._psutil_available = False
 
-    def add_callback(self, fn):
-        self._callbacks.append(fn)
+    def add_callback(self, fn): self._callbacks.append(fn)
 
     def _notify(self):
         for cb in self._callbacks:
-            try:
-                cb(self.data.copy())
-            except Exception:
-                pass
+            try: cb(self.data.copy())
+            except Exception: pass
 
     def _collect(self):
         if not self._psutil_available:
             import random
-            self.data["cpu"]       = round(random.uniform(5, 45), 1)
-            self.data["ram"]       = round(random.uniform(40, 80), 1)
-            self.data["ram_used"]  = round(random.uniform(4, 12), 2)
-            self.data["ram_total"] = 16.0
-            self.data["disk"]      = round(random.uniform(30, 70), 1)
-            self.data["disk_used"] = round(random.uniform(100, 400), 0)
-            self.data["disk_total"]= 512.0
-            self.data["processes"] = random.randint(120, 250)
-            self.data["uptime"]    = self._uptime_str()
+            self.data["cpu"]        = round(random.uniform(5, 65), 1)
+            self.data["ram"]        = round(random.uniform(40, 80), 1)
+            self.data["ram_used"]   = round(random.uniform(4, 12), 2)
+            self.data["ram_total"]  = 16.0
+            self.data["disk"]       = round(random.uniform(30, 70), 1)
+            self.data["disk_used"]  = round(random.uniform(100, 400), 0)
+            self.data["disk_total"] = 512.0
+            self.data["processes"]  = random.randint(120, 250)
+            self.data["gpu"]        = round(random.uniform(5, 50), 1)
+            self.data["uptime"]     = self._uptime_str()
             return
-
         p = self._psutil
         self.data["cpu"] = p.cpu_percent(interval=None)
         vm = p.virtual_memory()
-        self.data["ram"]       = vm.percent
-        self.data["ram_used"]  = round(vm.used / 1e9, 2)
-        self.data["ram_total"] = round(vm.total / 1e9, 2)
+        self.data["ram"]      = vm.percent
+        self.data["ram_used"] = round(vm.used / 1e9, 2)
+        self.data["ram_total"]= round(vm.total / 1e9, 2)
         try:
             du = p.disk_usage("C:\\")
             self.data["disk"]       = du.percent
             self.data["disk_used"]  = round(du.used / 1e9, 1)
             self.data["disk_total"] = round(du.total / 1e9, 1)
-        except Exception:
-            pass
-        try:
-            self.data["processes"] = len(p.pids())
-        except Exception:
-            pass
+        except Exception: pass
+        try: self.data["processes"] = len(p.pids())
+        except Exception: pass
         self.data["uptime"] = self._uptime_str()
         try:
             temps = p.sensors_temperatures()
             if temps:
-                for key in ["coretemp", "k10temp", "cpu_thermal"]:
+                for key in ["coretemp","k10temp","cpu_thermal"]:
                     if key in temps and temps[key]:
                         self.data["cpu_temp"] = round(temps[key][0].current, 1)
                         break
-        except Exception:
-            pass
+        except Exception: pass
 
     def _uptime_str(self):
         try:
-            if self._psutil_available:
-                sec = time.time() - self._psutil.boot_time()
-            else:
-                sec = time.time() % 86400
-            return f"{int(sec//3600)}h {int((sec%3600)//60)}m"
-        except Exception:
-            return "N/A"
+            sec = time.time() - (self._psutil.boot_time() if self._psutil_available else time.time() % 86400)
+            h = int(sec // 3600); m = int((sec % 3600) // 60); s = int(sec % 60)
+            return f"{h:02d}:{m:02d}:{s:02d}"
+        except Exception: return "N/A"
 
     def start(self):
-        if self.running:
-            return
+        if self.running: return
         self.running = True
         self.thread = threading.Thread(target=self._loop, daemon=True)
         self.thread.start()
 
-    def stop(self):
-        self.running = False
+    def stop(self): self.running = False
 
     def _loop(self):
-        if self._psutil_available:
-            self._psutil.cpu_percent(interval=None)
+        if self._psutil_available: self._psutil.cpu_percent(interval=None)
         time.sleep(1)
         while self.running:
-            self._collect()
-            self._notify()
-            time.sleep(2)
+            self._collect(); self._notify(); time.sleep(2)
 
 
-# ─── Main App ─────────────────────────────────────────────────────────────────
+# ─── Rounded-rectangle helper (PIL) ──────────────────────────────────────────
+def make_rounded_image(w, h, radius, fill, border=None, border_width=1):
+    img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    r = min(radius, w // 2, h // 2)
+    draw.rounded_rectangle([0, 0, w - 1, h - 1], radius=r, fill=fill,
+                           outline=border, width=border_width if border else 0)
+    return img
+
+
+def hex_to_rgba(hex_color, alpha=255):
+    h = hex_color.lstrip("#")
+    r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+    return (r, g, b, alpha)
+
+
+# ─── Wintoys-style glass card frame ──────────────────────────────────────────
+class GlassCard(tk.Frame):
+    """A frame that looks like a Wintoys dark glass card with rounded corners."""
+    def __init__(self, parent, radius=RADIUS, bg_color=BG_CARD, border_color=BG_CARD_BORDER,
+                 alpha=220, **kwargs):
+        super().__init__(parent, bg=parent.cget("bg"), **kwargs)
+        self._radius = radius
+        self._bg_color = bg_color
+        self._border_color = border_color
+        self._alpha = alpha
+        self._img = None
+        self._canvas = tk.Canvas(self, highlightthickness=0, bg=parent.cget("bg"))
+        self._canvas.place(x=0, y=0, relwidth=1, relheight=1)
+        self._inner = tk.Frame(self._canvas, bg=bg_color)
+        self._canvas.create_window(0, 0, anchor="nw", window=self._inner,
+                                   tags="inner_win")
+        self.bind("<Configure>", self._redraw)
+        self._inner.bind("<Configure>", self._redraw)
+
+    def _redraw(self, event=None):
+        w = self.winfo_width(); h = self.winfo_height()
+        if w < 2 or h < 2: return
+        self._canvas.config(width=w, height=h)
+        self._canvas.itemconfigure("inner_win", width=w-2, height=h-2)
+        self._canvas.coords("inner_win", 1, 1)
+        # Draw rounded background
+        self._canvas.delete("bg_rect")
+        self._canvas.create_rounded_rectangle = getattr(
+            self._canvas, "create_rounded_rectangle", None)
+        r = RADIUS
+        # Draw via polygon
+        self._draw_rounded_rect(w, h, r)
+
+    def _draw_rounded_rect(self, w, h, r):
+        self._canvas.delete("bg_rect", "bg_border")
+        bg = self._bg_color; bd = self._border_color
+        c = self._canvas
+        # Background
+        pts = self._rounded_pts(2, 2, w-2, h-2, r)
+        c.create_polygon(pts, fill=bg, outline="", tags="bg_rect", smooth=False)
+        # Border
+        c.create_polygon(pts, fill="", outline=bd, width=1, tags="bg_border", smooth=False)
+
+    @staticmethod
+    def _rounded_pts(x1, y1, x2, y2, r):
+        r = min(r, (x2-x1)//2, (y2-y1)//2)
+        pts = []
+        steps = 8
+        for cx, cy, sa, ea in [
+            (x1+r, y1+r, 180, 270),
+            (x2-r, y1+r,  270, 360),
+            (x2-r, y2-r,   0, 90),
+            (x1+r, y2-r,  90, 180),
+        ]:
+            for i in range(steps+1):
+                angle = math.radians(sa + (ea - sa) * i / steps)
+                pts.append(cx + r * math.cos(angle))
+                pts.append(cy + r * math.sin(angle))
+        return pts
+
+    def inner(self):
+        return self._inner
+
+
+# ─── Circular gauge (canvas) ─────────────────────────────────────────────────
+class ArcGauge(tk.Canvas):
+    def __init__(self, parent, size=90, color=ACCENT, bg=BG_CARD, **kwargs):
+        super().__init__(parent, width=size, height=size, bg=bg,
+                         highlightthickness=0, **kwargs)
+        self._size = size
+        self._color = color
+        self._bg_color = bg
+        self._value = 0.0
+        self._val_var = tk.StringVar(value="0")
+        self._draw()
+
+    def _draw(self):
+        s = self._size; m = 8; c = s // 2
+        self.delete("all")
+        # Track
+        self.create_arc(m, m, s-m, s-m, start=220, extent=-260,
+                        outline=BG_CARD_BORDER, width=6, style="arc")
+        # Value arc
+        extent = -260 * (self._value / 100.0)
+        if abs(extent) > 0.5:
+            self.create_arc(m, m, s-m, s-m, start=220, extent=extent,
+                            outline=self._color, width=6, style="arc")
+        # Center text
+        self.create_text(c, c-4, text=f"{self._value:.0f}",
+                         font=("Segoe UI", int(s*0.2), "bold"),
+                         fill=TEXT_PRIMARY)
+        self.create_text(c, c+10, text="%",
+                         font=("Segoe UI", int(s*0.1)),
+                         fill=TEXT_SECONDARY)
+
+    def set_value(self, val):
+        self._value = max(0.0, min(100.0, val))
+        color = DANGER if self._value >= 85 else (WARNING_TEXT if self._value >= 65 else self._color)
+        self._color_current = color
+        self._draw_colored(color)
+
+    def _draw_colored(self, color):
+        s = self._size; m = 8; c = s // 2
+        self.delete("all")
+        self.create_arc(m, m, s-m, s-m, start=220, extent=-260,
+                        outline=BG_CARD_BORDER, width=6, style="arc")
+        extent = -260 * (self._value / 100.0)
+        if abs(extent) > 0.5:
+            self.create_arc(m, m, s-m, s-m, start=220, extent=extent,
+                            outline=color, width=6, style="arc")
+        self.create_text(c, c-4, text=f"{self._value:.0f}",
+                         font=("Segoe UI", int(s*0.2), "bold"), fill=TEXT_PRIMARY)
+        self.create_text(c, c+10, text="%",
+                         font=("Segoe UI", int(s*0.1)), fill=TEXT_SECONDARY)
+
+
+# ─── Mini spark line ──────────────────────────────────────────────────────────
+class SparkLine(tk.Canvas):
+    def __init__(self, parent, width=80, height=30, color=ACCENT, bg=BG_CARD, **kwargs):
+        super().__init__(parent, width=width, height=height, bg=bg,
+                         highlightthickness=0, **kwargs)
+        self._color = color
+        self._data = []
+        self._w = width; self._h = height
+
+    def push(self, val):
+        self._data.append(val)
+        if len(self._data) > 30: self._data.pop(0)
+        self._redraw()
+
+    def _redraw(self):
+        self.delete("all")
+        if len(self._data) < 2: return
+        w, h = self._w, self._h
+        step = w / (len(self._data) - 1)
+        pts = []
+        for i, v in enumerate(self._data):
+            x = i * step
+            y = h - (v / 100.0) * (h - 4) - 2
+            pts.extend([x, y])
+        if len(pts) >= 4:
+            self.create_line(*pts, fill=self._color, width=1.5, smooth=True)
+
+
+# ─── Flat dark button ─────────────────────────────────────────────────────────
+class DarkButton(tk.Label):
+    def __init__(self, parent, text, command, style="normal", **kwargs):
+        self._radius = RADIUS
+        if style == "accent":
+            bg, fg, hbg = ACCENT, TEXT_ON_ACCENT, ACCENT_HOVER
+        elif style == "danger":
+            bg, fg, hbg = "#3d1210", DANGER, "#5a1a17"
+        else:
+            bg, fg, hbg = BG_CARD_BORDER, TEXT_SECONDARY, "#333333"
+        
+        # Usiamo un canvas per bottoni arrotondati veri
+        self._container = tk.Canvas(parent, height=34, bg=parent.cget("bg"), 
+                                   highlightthickness=0, cursor="hand2")
+        super().__init__(self._container, text=text, bg=bg, fg=fg,
+                        font=FONT_BODY, padx=14, pady=4,
+                        cursor="hand2", relief="flat")
+        
+        # Nota: Per semplicità in questo refactor manteniamo la Label ma con stile flat
+        # In una versione PRO useremmo create_polygon anche qui.
+        # Applichiamo un padding interno simulato
+        kwargs.pop('padx', None)
+        kwargs.pop('pady', None)
+        super().__init__(parent, text=text, bg=bg, fg=fg,
+                         font=FONT_BODY, padx=14, pady=6,
+                         cursor="hand2", relief="flat", **kwargs)
+        
+        self._bg = bg; self._hbg = hbg
+        self.bind("<Enter>", lambda e: self.configure(bg=hbg))
+        self.bind("<Leave>", lambda e: self.configure(bg=bg))
+        self.bind("<Button-1>", lambda e: command())
+
+
+# ─── Sidebar nav item ─────────────────────────────────────────────────────────
+class NavItem(tk.Frame):
+    def __init__(self, parent, icon, label, tab_id, on_click, **kwargs):
+        super().__init__(parent, bg=BG_SIDEBAR, height=40, cursor="hand2", **kwargs)
+        self.pack_propagate(False)
+        self._tab_id = tab_id
+        self._on_click = on_click
+        self._active = False
+
+        # Left indicator bar
+        self._ind = tk.Frame(self, bg=BG_SIDEBAR, width=3)
+        self._ind.pack(side="left", fill="y")
+
+        # Icon
+        self._icon_lbl = tk.Label(self, text=icon, font=("Segoe UI", 12),
+                                   bg=BG_SIDEBAR, fg=TEXT_TERTIARY, width=2)
+        self._icon_lbl.pack(side="left", padx=(8, 4))
+
+        # Label
+        self._text_lbl = tk.Label(self, text=label, font=FONT_BODY,
+                                   bg=BG_SIDEBAR, fg=TEXT_SECONDARY, anchor="w")
+        self._text_lbl.pack(side="left", fill="both", expand=True)
+
+        for w in (self, self._icon_lbl, self._text_lbl, self._ind):
+            w.bind("<Button-1>", self._click)
+            w.bind("<Enter>", self._hover)
+            w.bind("<Leave>", self._unhover)
+
+    def _click(self, e=None): self._on_click(self._tab_id)
+
+    def _hover(self, e=None):
+        if not self._active:
+            for w in (self, self._icon_lbl, self._text_lbl):
+                w.configure(bg=BG_SIDEBAR_ITEM)
+
+    def _unhover(self, e=None):
+        if not self._active:
+            for w in (self, self._icon_lbl, self._text_lbl):
+                w.configure(bg=BG_SIDEBAR)
+
+    def set_active(self, active):
+        self._active = active
+        if active:
+            self._ind.configure(bg=ACCENT)
+            for w in (self, self._icon_lbl, self._text_lbl):
+                w.configure(bg=BG_SIDEBAR_SEL)
+            self._text_lbl.configure(fg=TEXT_PRIMARY, font=FONT_HEADING)
+            self._icon_lbl.configure(fg=ACCENT2)
+        else:
+            self._ind.configure(bg=BG_SIDEBAR)
+            for w in (self, self._icon_lbl, self._text_lbl):
+                w.configure(bg=BG_SIDEBAR)
+            self._text_lbl.configure(fg=TEXT_SECONDARY, font=FONT_BODY)
+            self._icon_lbl.configure(fg=TEXT_TERTIARY)
+
+
+# ─── Info tile (like Wintoys grid card) ───────────────────────────────────────
+class InfoTile(GlassCard):
+    """Wintoys-style dark grid tile with icon, label, value."""
+    def __init__(self, parent, icon, label, value="—", accent=ACCENT, **kwargs):
+        super().__init__(parent, radius=RADIUS, bg_color=BG_CARD, border_color=BG_CARD_BORDER, **kwargs)
+        target = self.inner()
+        self._accent = accent
+        top = tk.Frame(target, bg=BG_CARD)
+        top.pack(fill="x", padx=12, pady=(10, 4))
+        tk.Label(top, text=icon, font=("Segoe UI", 13), bg=BG_CARD,
+                 fg=TEXT_SECONDARY).pack(side="left")
+        self._val = tk.Label(top, text="", font=FONT_TINY,
+                             bg=BG_CARD, fg=TEXT_TERTIARY)
+        self._val.pack(side="right")
+        tk.Label(target, text=label, font=FONT_SMALL, bg=BG_CARD,
+                 fg=TEXT_SECONDARY).pack(anchor="w", padx=12)
+        self._big = tk.Label(target, text=value, font=("Segoe UI", 14, "bold"),
+                             bg=BG_CARD, fg=TEXT_PRIMARY)
+        self._big.pack(anchor="w", padx=12, pady=(0, 4))
+        # Progress bar
+        bar_bg = tk.Frame(target, bg=BG_CARD_BORDER, height=3)
+        bar_bg.pack(fill="x", padx=12, pady=(0, 10))
+        bar_bg.pack_propagate(False)
+        self._bar = tk.Frame(bar_bg, bg=accent, height=3)
+        self._bar.place(x=0, y=0, relheight=1, relwidth=0)
+
+    def update_val(self, val_str, pct=None, accent=None):
+        self._big.configure(text=val_str)
+        if pct is not None:
+            a = accent or self._accent
+            if pct >= 85: a = DANGER
+            elif pct >= 65: a = WARNING_TEXT
+            self._bar.configure(bg=a)
+            self._bar.place_configure(relwidth=max(0, min(1, pct / 100)))
+
+    def set_sub(self, txt):
+        self._val.configure(text=txt)
+
+
+# ─── Main Application ─────────────────────────────────────────────────────────
 class CoreTuneApp:
     def __init__(self, root):
         self.root = root
         self.root.title(f"{APP_NAME} {APP_VERSION} — {APP_SUBTITLE}")
-        self.root.geometry("1100x720")
-        self.root.minsize(900, 600)
-        self.root.configure(bg=BG_SIDEBAR)
+        self.root.geometry("1120x700")
+        self.root.minsize(900, 580)
+        self.root.configure(bg=BG_ROOT)
 
-        self.current_tab      = tk.StringVar(value="dashboard")
-        self.status_var       = tk.StringVar(value="Pronto")
-        self.log_queue        = queue.Queue()
-        self.tip_index        = 0
-        self.operation_running= False
-        self._cpu_history     = []
+        self.current_tab       = tk.StringVar(value="dashboard")
+        self.status_var        = tk.StringVar(value="Pronto")
+        self.log_queue         = queue.Queue()
+        self.tip_index         = 0
+        self.operation_running = False
+        self._cpu_history      = []
+        self._installed_apps   = [] # Cache per app installate
 
         self.monitor = SystemMonitor()
         self.monitor.add_callback(self._on_monitor_update)
-        self._build_ui()
 
+        self._setup_styles()
+        self._build_ui()
         self.monitor.start()
         self._process_log_queue()
         self._rotate_tip()
         self._update_clock()
 
-        self._log(f"CoreTune {APP_VERSION} initialized — {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", "info")
-        self._log(f"System: {platform.system()} {platform.release()} | Host: {platform.node()}", "info")
-        if not self.monitor._psutil_available: # "psutil non installato — dati simulati attivi. Esegui: pip install psutil"
-            self._log("psutil not installed — simulated data active. Run: pip install psutil", "warn")
+        # Assicura che la home sia mostrata correttamente all'avvio
+        self.root.after(100, lambda: self._switch_tab("dashboard"))
+
+        self._log(f"CoreTune {APP_VERSION} avviato — {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", "info")
+        self._log(f"Sistema: {platform.system()} {platform.release()} | Host: {platform.node()}", "info")
+        if not self.monitor._psutil_available:
+            self._log("psutil non installato — dati simulati. Esegui: pip install psutil", "warn")
+
+    def _setup_styles(self):
+        style = ttk.Style()
+        style.theme_use("clam")
+        style.configure("Dark.Vertical.TScrollbar",
+                        background=BG_CARD_BORDER, troughcolor=BG_CARD,
+                        bordercolor=BG_CARD, arrowcolor=TEXT_TERTIARY, relief="flat",
+                        width=8)
+        style.map("Dark.Vertical.TScrollbar",
+                  background=[("active", GLASS_BORDER)])
 
     # ── Root layout ───────────────────────────────────────────────────────────
     def _build_ui(self):
@@ -249,104 +619,88 @@ class CoreTuneApp:
 
     # ── Sidebar ───────────────────────────────────────────────────────────────
     def _build_sidebar(self):
-        sb = tk.Frame(self.root, bg=BG_SIDEBAR, width=210)
+        sb = tk.Frame(self.root, bg=BG_SIDEBAR, width=200)
         sb.grid(row=0, column=0, sticky="nsew")
         sb.grid_propagate(False)
         sb.columnconfigure(0, weight=1)
         sb.rowconfigure(1, weight=1)
 
-        # Logo
-        logo = tk.Frame(sb, bg=BG_HEADER, height=64)
+        # Logo area
+        logo = tk.Frame(sb, bg=BG_SIDEBAR, height=60)
         logo.grid(row=0, column=0, sticky="ew")
         logo.grid_propagate(False)
-        tk.Label(logo, text="CoreTune", font=("Segoe UI", 16, "bold"),
-                 bg=BG_HEADER, fg=TEXT_ON_DARK).place(x=16, y=10)
-        tk.Label(logo, text="Aura Studio", font=FONT_SMALL,
-                 bg=BG_HEADER, fg="#9fd6f7").place(x=18, y=36)
+        # Hamburger-style menu icon area
+        top_bar = tk.Frame(logo, bg=BG_SIDEBAR)
+        top_bar.pack(fill="x", padx=16, pady=(12, 0))
+        tk.Label(top_bar, text="≡", font=("Segoe UI", 14), bg=BG_SIDEBAR,
+                 fg=TEXT_SECONDARY).pack(side="left")
+        # App name
+        name_fr = tk.Frame(logo, bg=BG_SIDEBAR)
+        name_fr.pack(fill="x", padx=16)
+        tk.Label(name_fr, text=APP_NAME, font=("Segoe UI", 13, "bold"),
+                 bg=BG_SIDEBAR, fg=TEXT_PRIMARY).pack(side="left")
 
-        # Nav
+        # Thin separator
+        tk.Frame(sb, bg=SEPARATOR, height=1).grid(row=0, column=0, sticky="sew")
+
+        # Nav items
         nav = tk.Frame(sb, bg=BG_SIDEBAR)
         nav.grid(row=1, column=0, sticky="nsew", pady=(8, 0))
+        nav.columnconfigure(0, weight=1)
 
-        self._nav_buttons = {}
-        for tab_id, label in [
-            ("dashboard",   "  Dashboard"),
-            ("optimize",    "  Ottimizza"),
-            ("monitor",     "  Monitor"),
-            ("diagnostics", "  Diagnostica"),
-            ("tips",        "  Consigli e Guide"),
-            ("log",         "  Registro Attività"),
-            ("settings",    "  Impostazioni"),
+        self._nav_items = {}
+        for tab_id, icon, label in [
+            ("dashboard",   "⌂",  "Home"),
+            ("optimize",    "⚡", "Ottimizzazione"),
+            ("apps",        "📥", "App Manager"),
+            ("debloat",     "🧹", "Debloat"),
+            ("monitor",     "📊", "Prestazioni"),
+            ("diagnostics", "🔍", "Diagnostica"),
+            ("tips",        "💡", "Consigli"),
+            ("log",         "📋", "Registro"),
+            ("settings",    "⚙",  "Settaggi"),
         ]:
-            self._nav_buttons[tab_id] = self._nav_btn(nav, tab_id, label)
+            item = NavItem(nav, icon, label, tab_id, self._switch_tab)
+            item.pack(fill="x", padx=4, pady=1)
+            self._nav_items[tab_id] = item
 
         # Footer
+        tk.Frame(sb, bg=SEPARATOR, height=1).grid(row=2, column=0, sticky="ew")
         foot = tk.Frame(sb, bg=BG_SIDEBAR)
-        foot.grid(row=2, column=0, sticky="ew")
-        tk.Label(foot, text=f"v{APP_VERSION}", font=FONT_SMALL,
-                 bg=BG_SIDEBAR, fg="#555555").pack(side="left", padx=14, pady=8)
+        foot.grid(row=3, column=0, sticky="ew")
+
+        for icon, label in [("🔄", "Riavvio"), ("💬", "Feedback"), ("⚙", "Impostazioni")]:
+            fr = tk.Frame(foot, bg=BG_SIDEBAR, height=36, cursor="hand2")
+            fr.pack(fill="x")
+            fr.pack_propagate(False)
+            tk.Label(fr, text=icon, font=("Segoe UI", 10), bg=BG_SIDEBAR,
+                     fg=TEXT_TERTIARY).pack(side="left", padx=(16, 6), pady=8)
+            tk.Label(fr, text=label, font=FONT_SMALL, bg=BG_SIDEBAR,
+                     fg=TEXT_TERTIARY).pack(side="left")
+
         self._clock_lbl = tk.Label(foot, text="", font=FONT_SMALL,
-                                   bg=BG_SIDEBAR, fg="#555555")
-        self._clock_lbl.pack(side="right", padx=14, pady=8)
-
-    def _nav_btn(self, parent, tab_id, label):
-        btn = tk.Frame(parent, bg=BG_SIDEBAR, cursor="hand2", height=36)
-        btn.pack(fill="x")
-        btn.pack_propagate(False)
-
-        ind = tk.Frame(btn, width=3, bg=BG_SIDEBAR)
-        ind.pack(side="left", fill="y")
-
-        lbl = tk.Label(btn, text=label, font=("Segoe UI", 9),
-                       bg=BG_SIDEBAR, fg=TEXT_ON_DARK2, anchor="w")
-        lbl.pack(side="left", fill="both", expand=True, padx=8)
-
-        def click(e=None): self._switch_tab(tab_id)
-        def enter(e):
-            if self.current_tab.get() != tab_id:
-                btn.configure(bg=BG_SIDEBAR_HV); lbl.configure(bg=BG_SIDEBAR_HV); ind.configure(bg=BG_SIDEBAR_HV)
-        def leave(e):
-            if self.current_tab.get() != tab_id:
-                btn.configure(bg=BG_SIDEBAR); lbl.configure(bg=BG_SIDEBAR); ind.configure(bg=BG_SIDEBAR)
-
-        for w in (btn, lbl, ind):
-            w.bind("<Button-1>", click)
-            w.bind("<Enter>", enter)
-            w.bind("<Leave>", leave)
-
-        btn._ind = ind
-        btn._lbl = lbl
-        return btn
+                                   bg=BG_SIDEBAR, fg=TEXT_TERTIARY)
+        self._clock_lbl.pack(side="bottom", pady=6)
 
     def _switch_tab(self, tab_id):
         old = self.current_tab.get()
-        if old == tab_id:
-            return
-        if old in self._nav_buttons:
-            b = self._nav_buttons[old]
-            b.configure(bg=BG_SIDEBAR)
-            b._lbl.configure(bg=BG_SIDEBAR, fg=TEXT_ON_DARK2, font=("Segoe UI", 9))
-            b._ind.configure(bg=BG_SIDEBAR)
+        if old == tab_id: return
+        if old in self._nav_items: self._nav_items[old].set_active(False)
         self.current_tab.set(tab_id)
-        b = self._nav_buttons[tab_id]
-        b.configure(bg=BG_SIDEBAR_HV)
-        b._lbl.configure(bg=BG_SIDEBAR_HV, fg=TEXT_ON_DARK, font=("Segoe UI", 9, "bold"))
-        b._ind.configure(bg=ACCENT)
+        self._nav_items[tab_id].set_active(True)
         for tid, fr in self._tab_frames.items():
-            if tid == tab_id:
-                fr.grid(row=0, column=0, sticky="nsew")
-            else:
-                fr.grid_remove()
+            if tid == tab_id: fr.grid(row=0, column=0, sticky="nsew")
+            else: fr.grid_remove()
 
     # ── Main area ─────────────────────────────────────────────────────────────
     def _build_main(self):
-        main = tk.Frame(self.root, bg=BG_BASE)
+        main = tk.Frame(self.root, bg=BG_MAIN)
         main.grid(row=0, column=1, sticky="nsew")
         main.columnconfigure(0, weight=1)
         main.rowconfigure(0, weight=1)
         main.rowconfigure(1, weight=0)
 
-        content = tk.Frame(main, bg=BG_BASE)
+        content = tk.Frame(main, bg=BG_MAIN)
         content.grid(row=0, column=0, sticky="nsew")
         content.columnconfigure(0, weight=1)
         content.rowconfigure(0, weight=1)
@@ -355,236 +709,291 @@ class CoreTuneApp:
         for tab_id, builder in [
             ("dashboard",   self._tab_dashboard),
             ("optimize",    self._tab_optimize),
+            ("apps",        self._tab_apps),
+            ("debloat",     self._tab_debloat),
             ("monitor",     self._tab_monitor),
             ("diagnostics", self._tab_diagnostics),
             ("tips",        self._tab_tips),
             ("log",         self._tab_log),
             ("settings",    self._tab_settings),
         ]:
-            fr = tk.Frame(content, bg=BG_BASE)
+            fr = tk.Frame(content, bg=BG_MAIN)
             fr.columnconfigure(0, weight=1)
             fr.rowconfigure(0, weight=1)
             self._tab_frames[tab_id] = fr
             builder(fr)
 
         # Status bar
-        bar = tk.Frame(main, bg=STATUSBAR_BG, height=24,
-                       highlightthickness=1, highlightbackground=BORDER)
+        bar = tk.Frame(main, bg=BG_SIDEBAR, height=26)
         bar.grid(row=1, column=0, sticky="ew")
         bar.grid_propagate(False)
+        tk.Frame(bar, bg=SEPARATOR, height=1).place(x=0, y=0, relwidth=1)
         tk.Label(bar, textvariable=self.status_var, font=FONT_SMALL,
-                 bg=STATUSBAR_BG, fg=TEXT_SECONDARY, anchor="w").pack(side="left", padx=10)
+                 bg=BG_SIDEBAR, fg=TEXT_TERTIARY, anchor="w").pack(side="left", padx=14)
         self._sb_mon = tk.Label(bar, text="", font=FONT_SMALL,
-                                bg=STATUSBAR_BG, fg=TEXT_SECONDARY)
-        self._sb_mon.pack(side="right", padx=10)
-
+                                bg=BG_SIDEBAR, fg=TEXT_TERTIARY)
+        self._sb_mon.pack(side="right", padx=14)
         self._switch_tab("dashboard")
 
-    # ── Shared helpers ────────────────────────────────────────────────────────
-    def _page_header(self, parent, title, subtitle):
-        """Blue header row. Uses pack inside itself; grid-places into parent row=0."""
-        hdr = tk.Frame(parent, bg=BG_HEADER, height=56)
-        hdr.grid(row=0, column=0, sticky="ew")
-        hdr.grid_propagate(False)
-        tk.Label(hdr, text=title, font=("Segoe UI", 14, "bold"),
-                 bg=BG_HEADER, fg=TEXT_ON_DARK, anchor="w").place(x=18, y=8)
-        tk.Label(hdr, text=subtitle, font=FONT_SMALL,
-                 bg=BG_HEADER, fg="#9fd6f7", anchor="w").place(x=20, y=32)
-        parent.rowconfigure(0, weight=0)
-        parent.rowconfigure(1, weight=1)
-
-    def _scrollable(self, parent):
-        """
-        Returns a padded inner Frame suitable for grid children.
-        The canvas sits at parent row=1, column=0.
-        """
-        canvas = tk.Canvas(parent, bg=BG_BASE, highlightthickness=0)
-        vsb = ttk.Scrollbar(parent, orient="vertical", command=canvas.yview)
+    # ── Scrollable canvas ─────────────────────────────────────────────────────
+    def _scrollable(self, parent, row=1):
+        canvas = tk.Canvas(parent, bg=BG_MAIN, highlightthickness=0)
+        vsb = ttk.Scrollbar(parent, orient="vertical", command=canvas.yview,
+                            style="Dark.Vertical.TScrollbar")
         canvas.configure(yscrollcommand=vsb.set)
-        canvas.grid(row=1, column=0, sticky="nsew")
-        vsb.grid(row=1, column=1, sticky="ns")
+        canvas.grid(row=row, column=0, sticky="nsew")
+        vsb.grid(row=row, column=1, sticky="ns")
         parent.columnconfigure(0, weight=1)
         parent.columnconfigure(1, weight=0)
+        parent.rowconfigure(row, weight=1)
 
-        inner = tk.Frame(canvas, bg=BG_BASE)
+        inner = tk.Frame(canvas, bg=BG_MAIN)
         win_id = canvas.create_window((0, 0), window=inner, anchor="nw")
 
-        def _on_inner(e):
+        def _resize_inner(e): 
             canvas.configure(scrollregion=canvas.bbox("all"))
-        def _on_canvas(e):
-            canvas.itemconfigure(win_id, width=e.width)
-        def _on_wheel(e):
-            canvas.yview_scroll(int(-1 * (e.delta / 120)), "units")
+        def _resize_canvas(e): canvas.itemconfigure(win_id, width=e.width)
 
-        inner.bind("<Configure>", _on_inner)
-        canvas.bind("<Configure>", _on_canvas)
-        canvas.bind_all("<MouseWheel>", _on_wheel)
+        # Variabili per lo scorrimento fluido (Smooth Scrolling)
+        canvas._target_pos = 0.0
+        canvas._is_scrolling = False
 
-        padded = tk.Frame(inner, bg=BG_BASE)
-        padded.pack(fill="both", expand=True, padx=16, pady=12)
+        def _smooth_scroll_task():
+            if not canvas._is_scrolling: return
+            curr = canvas.yview()[0]
+            diff = canvas._target_pos - curr
+            if abs(diff) < 0.0001:
+                canvas.yview_moveto(canvas._target_pos)
+                canvas._is_scrolling = False
+            else:
+                # 0.25 determina la "morbidezza": più basso è, più è lento/fluido
+                canvas.yview_moveto(curr + diff * 0.25)
+                canvas.after(10, _smooth_scroll_task)
+
+        def _on_mousewheel(event):
+            # 1. Verifica se il canvas è visibile (non siamo in un'altra tab)
+            if not canvas.winfo_viewable():
+                return
+
+            # 2. Verifica se il mouse è fisicamente sopra il canvas
+            # Usiamo le coordinate assolute per bypassare i widget figli che "rubano" l'evento
+            mx = canvas.winfo_pointerx() - canvas.winfo_rootx()
+            my = canvas.winfo_pointery() - canvas.winfo_rooty()
+            
+            if not (0 <= mx <= canvas.winfo_width() and 0 <= my <= canvas.winfo_height()):
+                return
+
+            # 3. Se siamo sopra un'area di testo (log), lasciamo che lo scroll lo gestisca il widget stesso
+            if "scrolledtext" in str(event.widget).lower():
+                return
+            
+            # 4. Calcolo dimensioni contenuto
+            canvas.update_idletasks() # Assicura che le dimensioni siano aggiornate
+            region = canvas.cget("scrollregion")
+            if not region: 
+                canvas.configure(scrollregion=canvas.bbox("all"))
+                region = canvas.cget("scrollregion")
+
+            try:
+                content_h = float(region.split()[-1])
+                visible_h = canvas.winfo_height()
+                if content_h <= visible_h: return
+                
+                if not canvas._is_scrolling:
+                    canvas._target_pos = canvas.yview()[0]
+                    canvas._is_scrolling = True
+                    canvas.after(1, _smooth_scroll_task)
+                
+                # Sensibilità: 180 pixel per scatto, più veloce e reattivo
+                delta = (180 / content_h) * (-event.delta / 120)
+                canvas._target_pos = max(0.0, min(1.0, canvas._target_pos + delta))
+            except: pass
+
+        # Usiamo bind_all sul root per catturare TUTTI gli eventi rotellina
+        # ma la logica sopra filtra solo quelli validi per questo canvas
+        self.root.bind_all("<MouseWheel>", _on_mousewheel, add="+")
+
+        inner.bind("<Configure>", _resize_inner)
+        canvas.bind("<Configure>", _resize_canvas)
+
+        padded = tk.Frame(inner, bg=BG_MAIN)
+        padded.pack(fill="both", expand=True, padx=20, pady=16)
         padded.columnconfigure(0, weight=1)
         return padded
 
-    def _section(self, parent, title):
-        """
-        Returns (outer_frame, body_frame).
-        outer uses pack for its header + body; body is pure grid-ready.
-        Caller places outer with .grid() into the scrollable frame.
-        """
-        outer = tk.Frame(parent, bg=BG_PANEL,
-                         highlightthickness=1, highlightbackground=BORDER)
-        # header row — pack only inside outer
-        hdr = tk.Frame(outer, bg=BG_CARD_DARK, height=30)
-        hdr.pack(fill="x")
-        hdr.pack_propagate(False)
-        tk.Label(hdr, text=title, font=FONT_HEADING,
-                 bg=BG_CARD_DARK, fg=TEXT_PRIMARY).pack(side="left", padx=12, pady=6)
-        # body frame — children will use grid
-        body = tk.Frame(outer, bg=BG_PANEL)
+    # ── Page header ───────────────────────────────────────────────────────────
+    def _page_header(self, parent, title, subtitle=""):
+        hdr = tk.Frame(parent, bg=BG_SIDEBAR, height=52)
+        hdr.grid(row=0, column=0, columnspan=2, sticky="ew")
+        hdr.grid_propagate(False)
+        tk.Frame(hdr, bg=SEPARATOR, height=1).place(x=0, rely=1.0, anchor="sw", relwidth=1)
+        tk.Label(hdr, text=title, font=("Segoe UI", 13, "bold"),
+                 bg=BG_SIDEBAR, fg=TEXT_PRIMARY).place(x=20, y=8)
+        if subtitle:
+            tk.Label(hdr, text=subtitle, font=FONT_SMALL,
+                     bg=BG_SIDEBAR, fg=TEXT_TERTIARY).place(x=22, y=31)
+        parent.rowconfigure(0, weight=0)
+        parent.rowconfigure(1, weight=1)
+
+    # ── Dark card ─────────────────────────────────────────────────────────────
+    def _card(self, parent, title=None):
+        outer = tk.Frame(parent, bg=BG_CARD,
+                         highlightbackground=BG_CARD_BORDER, highlightthickness=1)
+        if title:
+            hdr = tk.Frame(outer, bg=BG_CARD)
+            hdr.pack(fill="x", padx=14, pady=(12, 6))
+            tk.Label(hdr, text=title, font=FONT_HEADING,
+                     bg=BG_CARD, fg=TEXT_PRIMARY).pack(side="left")
+            tk.Frame(outer, bg=SEPARATOR, height=1).pack(fill="x")
+        body = tk.Frame(outer, bg=BG_CARD)
         body.pack(fill="both", expand=True)
         return outer, body
-
-    def _btn(self, parent, text, cmd, bg=BG_CARD_DARK, fg=TEXT_PRIMARY):
-        """Clickable label button."""
-        b = tk.Label(parent, text=text, font=FONT_BODY, bg=bg, fg=fg,
-                     padx=14, pady=6, cursor="hand2", relief="flat", bd=0)
-        hover_bg = ACCENT_HOVER if bg == ACCENT else (DANGER_HOVER if bg == DANGER else BORDER_DARK)
-        b.bind("<Enter>", lambda e: b.configure(bg=hover_bg))
-        b.bind("<Leave>", lambda e: b.configure(bg=bg))
-        b.bind("<Button-1>", lambda e: cmd())
-        return b
-
-    # ── Metric card ───────────────────────────────────────────────────────────
-    def _metric_card(self, parent, title, unit, color):
-        card = tk.Frame(parent, bg=BG_PANEL,
-                        highlightthickness=1, highlightbackground=BORDER)
-        card._val_var = tk.StringVar(value="—")
-        # Everything inside card uses pack — card itself is placed by caller
-        tk.Label(card, text=title, font=FONT_BODY, bg=BG_PANEL,
-                 fg=TEXT_SECONDARY).pack(anchor="w", padx=14, pady=(12, 0))
-        vf = tk.Frame(card, bg=BG_PANEL)
-        vf.pack(fill="x", padx=14, pady=4)
-        card._val_lbl = tk.Label(vf, textvariable=card._val_var,
-                                 font=("Segoe UI", 28, "bold"), bg=BG_PANEL, fg=color)
-        card._val_lbl.pack(side="left")
-        tk.Label(vf, text=unit, font=("Segoe UI", 14),
-                 bg=BG_PANEL, fg=TEXT_SECONDARY).pack(side="left", anchor="s", pady=6)
-        bar_bg = tk.Frame(card, bg=BORDER, height=4)
-        bar_bg.pack(fill="x", padx=14, pady=(0, 12))
-        bar_bg.pack_propagate(False)
-        card._bar    = tk.Frame(bar_bg, bg=color, height=4)
-        card._bar.place(x=0, y=0, relheight=1, relwidth=0)
-        card._color  = color
-        card._bar_bg = bar_bg
-        return card
-
-    def _update_metric_card(self, card, val):
-        card._val_var.set(f"{val:.1f}")
-        pct = max(0.0, min(1.0, val / 100.0))
-        card._bar.place_configure(relwidth=pct)
-        color = DANGER if val >= 85 else (WARNING if val >= 65 else card._color)
-        card._val_lbl.configure(fg=color)
-        card._bar.configure(bg=color)
 
     # ─────────────────────────────────────────────────────────────────────────
     # TAB: Dashboard
     # ─────────────────────────────────────────────────────────────────────────
     def _tab_dashboard(self, parent):
-        self._page_header(parent, "Dashboard", "Panoramica del sistema e azioni rapide")
+        self._page_header(parent, "Home", f"CoreTune {APP_VERSION} — Panoramica del sistema")
         sf = self._scrollable(parent)
         sf.columnconfigure(0, weight=1)
-        sf.columnconfigure(1, weight=1)
-        sf.columnconfigure(2, weight=1)
 
-        # ── Metric cards (row 0) ──
-        self._dash_cards = {}
-        for col, (key, title, unit, color) in enumerate([
-            ("cpu",  "Utilizzo CPU",  "%", ACCENT),
-            ("ram",  "Utilizzo RAM",  "%", SUCCESS),
-            ("disk", "Utilizzo Disco", "%", WARNING),
-        ]):
-            c = self._metric_card(sf, title, unit, color)
-            px = (0, 6) if col == 0 else (6, 6) if col == 1 else (6, 0)
-            c.grid(row=0, column=col, padx=px, pady=(0, 12), sticky="ew")
-            self._dash_cards[key] = c
+        # ── Top: System info tiles (4 per row, like Wintoys) ──
+        top_fr = tk.Frame(sf, bg=BG_MAIN)
+        top_fr.grid(row=0, column=0, sticky="ew", pady=(0, 14))
+        for i in range(4): top_fr.columnconfigure(i, weight=1)
 
-        # ── System info + Quick actions (row 1) ──
-        si_outer, si_body = self._section(sf, "Informazioni di Sistema")
-        si_outer.grid(row=1, column=0, columnspan=2, padx=(0, 6), pady=(0, 12), sticky="nsew")
-        si_body.columnconfigure(1, weight=1)
-        
-        self._si_lbls = {}
-        for r, (key, label, val) in enumerate([
-            ("os",     "Sistema Operativo", platform.system() + " " + platform.release()),
-            ("host",   "Nome Host",         platform.node()),
-            ("cpu",    "Processore",        (platform.processor() or "Sconosciuto")[:60]),
-            ("arch",   "Architettura",     platform.machine()),
-            ("python", "Versione Python",   platform.python_version()),
-            ("uptime", "Tempo di Attività",           "—"),
-            ("procs",  "Processi",        "—"),
-            ("temp",   "Temperatura CPU",  "—"),
+        cpu_short = (platform.processor() or "Unknown")[:24]
+        os_name = f"{platform.system()} {platform.release()}"
+
+        sysinfo = [
+            ("🖥", "Sistema",     platform.node()[:20],    ACCENT),
+            ("🔲", "Processore",  cpu_short,               "#9b59b6"),
+            ("🎮", "Grafica",     "GPU Integrata",         "#e74c3c"),
+            ("🧠", "Memoria",     "—",                     SUCCESS_TEXT),
+            ("💾", "Archiviazione","—",                    WARNING_TEXT),
+            ("🪟", "Windows",     platform.release(),      ACCENT2),
+            ("⏱", "Uptime",      "—",                     "#1abc9c"),
+            ("📊", "Prestazioni", "—",                     "#f39c12"),
+        ]
+        self._si_tiles = {}
+        for i, (icon, label, val, color) in enumerate(sysinfo):
+            col = i % 4; row_num = i // 4
+            tile = InfoTile(top_fr, icon, label, val, accent=color)
+            px = (0, 6) if col == 0 else (3, 3) if col < 3 else (6, 0)
+            tile.grid(row=row_num, column=col, padx=px, pady=(0, 6), sticky="ew")
+            self._si_tiles[label] = tile
+
+        # ── Middle: metrics + quick actions ──
+        mid_fr = tk.Frame(sf, bg=BG_MAIN)
+        mid_fr.grid(row=1, column=0, sticky="ew", pady=(0, 14))
+        mid_fr.columnconfigure(0, weight=1)
+        mid_fr.columnconfigure(1, weight=0)
+
+        # Usage gauges row
+        gauge_fr = tk.Frame(mid_fr, bg=BG_CARD,
+                           highlightbackground=BG_CARD_BORDER, highlightthickness=1)
+        gauge_fr.grid(row=0, column=0, sticky="ew", padx=(0, 10))
+        for i in range(4): gauge_fr.columnconfigure(i, weight=1)
+        tk.Label(gauge_fr, text="Monitoraggio in tempo reale", font=FONT_HEADING,
+                 bg=BG_CARD, fg=TEXT_PRIMARY).grid(
+            row=0, column=0, columnspan=4, sticky="w", padx=14, pady=(12, 6))
+        tk.Frame(gauge_fr, bg=SEPARATOR, height=1).grid(
+            row=1, column=0, columnspan=4, sticky="ew")
+
+        self._gauges = {}
+        for col, (key, label, color) in enumerate([
+            ("cpu",  "Processore", ACCENT),
+            ("ram",  "Memoria",    SUCCESS_TEXT),
+            ("disk", "Disco",      WARNING_TEXT),
+            ("gpu",  "Scheda video", "#9b59b6"),
         ]):
-            tk.Label(si_body, text=label + ":", font=FONT_BODY,
-                     bg=BG_PANEL, fg=TEXT_SECONDARY, anchor="w").grid(
-                row=r, column=0, sticky="w", padx=(14, 6), pady=3)
-            lbl = tk.Label(si_body, text=val, font=("Segoe UI", 9, "bold"),
-                           bg=BG_PANEL, fg=TEXT_PRIMARY, anchor="w")
-            lbl.grid(row=r, column=1, sticky="w", padx=(0, 14), pady=3)
-            self._si_lbls[key] = lbl
-        tk.Frame(si_body, bg=BG_PANEL, height=6).grid(row=8, column=0)
-        
-        qa_outer, qa_body = self._section(sf, "Azioni Rapide")
-        qa_outer.grid(row=1, column=2, pady=(0, 12), sticky="nsew")
-        for label, cmd, bg, fg in [
-            ("Ottimizza Tutto",         self._do_boost_all,    ACCENT,    TEXT_ON_DARK),
-            ("Pulisci File Temporanei",  self._do_clean_temp,   BG_CARD,   TEXT_PRIMARY),
-            ("Pulizia Discord",   self._do_discord,      BG_CARD,   TEXT_PRIMARY),
-            ("Modalità Prestazioni",  self._do_perf_mode,    BG_CARD,   TEXT_PRIMARY),
-            ("Apri Gestione Attività", self._open_taskmgr,    BG_CARD,   TEXT_PRIMARY),
+            gf = tk.Frame(gauge_fr, bg=BG_CARD)
+            gf.grid(row=2, column=col, padx=10, pady=12)
+            g = ArcGauge(gf, size=80, color=color, bg=BG_CARD)
+            g.pack()
+            tk.Label(gf, text=label, font=FONT_SMALL, bg=BG_CARD,
+                     fg=TEXT_SECONDARY).pack(pady=(4, 0))
+            self._gauges[key] = g
+
+        # Quick actions
+        qa_fr = tk.Frame(mid_fr, bg=BG_CARD,
+                         highlightbackground=BG_CARD_BORDER, highlightthickness=1,
+                         width=180)
+        qa_fr.grid(row=0, column=1, sticky="nsew")
+        qa_fr.grid_propagate(False)
+        tk.Label(qa_fr, text="Azioni Rapide", font=FONT_HEADING,
+                 bg=BG_CARD, fg=TEXT_PRIMARY).pack(anchor="w", padx=14, pady=(12, 6))
+        tk.Frame(qa_fr, bg=SEPARATOR, height=1).pack(fill="x")
+
+        for label, cmd, style in [
+            ("🚀  Ottimizza Tutto",       self._do_boost_all,  "accent"),
+            ("🧹  Pulisci Temp",          self._do_clean_temp, "normal"),
+            ("💬  Svuota Discord",       self._do_discord,    "normal"),
+            ("⚡  Modalità Prestazioni",  self._do_perf_mode,  "normal"),
+            ("📋  Gestione Attività",     self._open_taskmgr,  "normal"),
         ]:
-            self._btn(qa_body, label, cmd, bg, fg).pack(fill="x", padx=12, pady=3)
-        tk.Frame(qa_body, bg=BG_PANEL, height=6).pack()
-        
-        # ── Tip of the Day (row 2) ── # "Consiglio del Giorno"
-        tip_outer, tip_body = self._section(sf, "Consiglio del Giorno")
-        tip_outer.grid(row=2, column=0, columnspan=3, pady=(0, 12), sticky="ew")
-        self._tip_cat_lbl = tk.Label(tip_body, text="", font=FONT_SMALL,
-                                     bg=BG_PANEL, fg=ACCENT)
+            DarkButton(qa_fr, label, cmd, style=style).pack(
+                fill="x", padx=10, pady=(4, 0))
+        tk.Frame(qa_fr, bg=BG_CARD, height=8).pack()
+
+        # ── Bottom: stat tiles ──
+        bot_fr = tk.Frame(sf, bg=BG_MAIN)
+        bot_fr.grid(row=2, column=0, sticky="ew", pady=(0, 14))
+        for i in range(4): bot_fr.columnconfigure(i, weight=1)
+
+        self._stat_tiles = {}
+        stat_defs = [
+            ("📦", "Applicazioni", "—",  ACCENT),
+            ("⚙",  "Processi",    "—",  TEXT_SECONDARY),
+            ("🔧", "Servizi",     "—",  "#1abc9c"),
+            ("🧹", "Spazio pulito","0 B", SUCCESS_TEXT),
+        ]
+        for i, (icon, label, val, color) in enumerate(stat_defs):
+            px = (0, 6) if i == 0 else (3, 3) if i < 3 else (6, 0)
+            tile = InfoTile(bot_fr, icon, label, val, accent=color)
+            tile.grid(row=0, column=i, padx=px, sticky="ew")
+            self._stat_tiles[label] = tile
+
+        # ── Tip of the day ──
+        tip_outer, tip_body = self._card(sf, "💡  Consiglio del Giorno")
+        tip_outer.grid(row=3, column=0, sticky="ew", pady=(0, 8))
+        self._tip_cat_lbl = tk.Label(tip_body, text="", font=("Segoe UI", 8, "bold"),
+                                     bg=BG_CARD, fg=ACCENT2)
         self._tip_cat_lbl.pack(anchor="w", padx=14, pady=(8, 2))
         self._tip_txt_lbl = tk.Label(tip_body, text="", font=FONT_BODY,
-                                     bg=BG_PANEL, fg=TEXT_PRIMARY,
-                                     wraplength=700, justify="left", anchor="w")
-        self._tip_txt_lbl.pack(anchor="w", padx=14, pady=(0, 10))
+                                     bg=BG_CARD, fg=TEXT_SECONDARY,
+                                     wraplength=700, justify="left")
+        self._tip_txt_lbl.pack(anchor="w", padx=14, pady=(0, 12))
 
     # ─────────────────────────────────────────────────────────────────────────
     # TAB: Optimize
     # ─────────────────────────────────────────────────────────────────────────
     def _tab_optimize(self, parent):
-        self._page_header(parent, "Ottimizza", "Esegui script di ottimizzazione per migliorare le prestazioni del sistema")
+        self._page_header(parent, "Ottimizza", "Esegui script di ottimizzazione per migliorare le prestazioni")
         sf = self._scrollable(parent)
         sf.columnconfigure(0, weight=1)
         sf.columnconfigure(1, weight=1)
 
         opts = [
-            dict(id="boost_all",   title="Ottimizzazione Completa del Sistema",
-                 desc="Esegue tutti gli script di ottimizzazione in sequenza: pulizia temporanei, pulizia Discord e attivazione della modalità prestazioni. Consigliato per una messa a punto completa.",
+            dict(id="boost_all", icon="🚀", title="Ottimizzazione Completa",
+                 desc="Esegue tutti gli script in sequenza: pulizia temporanei, Discord e modalità prestazioni.",
                  badge="CONSIGLIATO", badge_color=ACCENT, action=self._do_boost_all,
                  col=0, row=0, cs=2),
-            dict(id="clean_temp",  title="Pulisci File Temporanei",
-                 desc="Rimuove i file temporanei da %TEMP%, Windows Temp e dalle directory Prefetch. Libera spazio su disco e può ridurre il tempo di avvio.",
+            dict(id="clean_temp", icon="🧹", title="Pulisci File Temporanei",
+                 desc="Rimuove file temporanei da %TEMP%, Windows Temp e Prefetch. Libera spazio su disco.",
                  badge="SICURO", badge_color=SUCCESS, action=self._do_clean_temp,
                  col=0, row=1, cs=1),
-            dict(id="discord",     title="Pulizia Cache Discord",
-                 desc="Cancella la cache locale di Discord, la cache GPU e i dump degli errori. Risolve lag e utilizzo elevato della memoria. Discord deve essere chiuso prima.",
+            dict(id="discord", icon="💬", title="Pulizia Cache Discord",
+                 desc="Cancella cache locale di Discord, GPU e dump errori. Discord deve essere chiuso prima.",
                  badge="CACHE APP", badge_color="#5865f2", action=self._do_discord,
                  col=1, row=1, cs=1),
-            dict(id="performance", title="Modalità Prestazioni",
-                 desc="Passa il piano energetico di Windows a Prestazioni elevate, disabilita gli effetti visivi e regola le impostazioni di sistema per la massima reattività.",
-                 badge="ENERGIA", badge_color=WARNING, action=self._do_perf_mode,
+            dict(id="performance", icon="⚡", title="Modalità Prestazioni",
+                 desc="Passa il piano energetico a Prestazioni elevate e disabilita effetti visivi.",
+                 badge="ENERGIA", badge_color=WARNING_TEXT, action=self._do_perf_mode,
                  col=0, row=2, cs=1),
-            dict(id="taskmgr",     title="Apri Gestione Attività",
-                 desc="Avvia Gestione attività di Windows per ispezionare i processi in esecuzione, l'utilizzo di CPU/RAM/Disco/Rete e i programmi di avvio.",
-                 badge="WINDOWS", badge_color=TEXT_SECONDARY, action=self._open_taskmgr,
+            dict(id="taskmgr", icon="📋", title="Gestione Attività",
+                 desc="Avvia Gestione attività per ispezionare processi e utilizzo risorse.",
+                 badge="WINDOWS", badge_color=TEXT_TERTIARY, action=self._open_taskmgr,
                  col=1, row=2, cs=1),
         ]
 
@@ -592,39 +1001,212 @@ class CoreTuneApp:
             card = self._opt_card(sf, o)
             px = (0, 6) if o["col"] == 0 and o["cs"] == 1 else \
                  (6, 0) if o["col"] == 1 else (0, 0)
-            card.grid(row=o["row"], column=o["col"], columnspan=o["cs"], # "Registro Ottimizzazione"
+            card.grid(row=o["row"], column=o["col"], columnspan=o["cs"],
                       padx=px, pady=(0, 10), sticky="nsew")
 
-        # Log panel
-        log_outer, log_body = self._section(sf, "Optimization Log")
-        log_outer.grid(row=10, column=0, columnspan=2, pady=(6, 0), sticky="nsew")
+        log_out, log_body = self._card(sf, "📋  Registro Ottimizzazione")
+        log_out.grid(row=10, column=0, columnspan=2, pady=(6, 0), sticky="nsew")
         sf.rowconfigure(10, weight=1)
-
         self._opt_log = scrolledtext.ScrolledText(
             log_body, font=FONT_MONO, height=8,
-            bg="#1e1e1e", fg="#d4d4d4", insertbackground="white",
+            bg="#0d0d0d", fg="#d4d4d4", insertbackground="white",
             relief="flat", bd=0, state="disabled")
-        self._opt_log.pack(fill="both", expand=True)
-        for tag, fg in [("info","#9cdcfe"),("warn","#ce9178"),("error","#f48771"),
-                        ("ok","#4ec9b0"),("ts","#608b4e")]:
+        self._opt_log.pack(fill="both", expand=True, padx=1, pady=1)
+        for tag, fg in [("info",INFO_TEXT),("warn",WARNING_TEXT),
+                        ("error",DANGER),("ok",SUCCESS_TEXT),("ts",TEXT_TERTIARY)]:
             self._opt_log.tag_config(tag, foreground=fg)
 
+    # ─────────────────────────────────────────────────────────────────────────
+    # TAB: App Manager
+    # ─────────────────────────────────────────────────────────────────────────
+    def _tab_apps(self, parent):
+        self._page_header(parent, "App Manager", "Gestione centralizzata software (Winget)")
+        sf = self._scrollable(parent)
+        sf.columnconfigure(0, weight=1)
+        
+        # 1. Installazione Rapida (Categorie)
+        inst_out, inst_body = self._card(sf, "📥  Catalogo Applicazioni")
+        inst_out.grid(row=0, column=0, sticky="ew", pady=(0, 20))
+        
+        for cat_name, apps in APP_CATALOG.items():
+            cat_fr = tk.Frame(inst_body, bg=BG_CARD)
+            cat_fr.pack(fill="x", padx=14, pady=(10, 5))
+            tk.Label(cat_fr, text=cat_name, font=FONT_HEADING, bg=BG_CARD, fg=ACCENT2).pack(anchor="w")
+            
+            grid = tk.Frame(inst_body, bg=BG_CARD)
+            grid.pack(fill="x", padx=14, pady=(0, 10))
+            for i, (name, app_id) in enumerate(apps):
+                btn_fr = tk.Frame(grid, bg=BG_CARD_BORDER, padx=8, pady=4)
+                btn_fr.grid(row=i//3, column=i%3, padx=4, pady=4, sticky="ew")
+                grid.columnconfigure(i%3, weight=1)
+                
+                tk.Label(btn_fr, text=name, font=FONT_SMALL, bg=BG_CARD_BORDER, fg=TEXT_PRIMARY).pack(side="left")
+                DarkButton(btn_fr, "Install", lambda id=app_id: self._run_action(f"Install {name}", ["install_app.ps1", id]), 
+                           style="accent").pack(side="right")
+
+        # 2. Disinstallazione in tempo reale
+        uninst_out, uninst_body = self._card(sf, "🗑️  App Installate sul PC")
+        uninst_out.grid(row=1, column=0, sticky="ew")
+        
+        # Toolbar disinstallazione
+        tools = tk.Frame(uninst_body, bg=BG_CARD, padx=14, pady=10)
+        tools.pack(fill="x")
+        
+        self._app_search_var = tk.StringVar()
+        self._app_search_var.trace_add("write", lambda *a: self._render_installed_list())
+        tk.Label(tools, text="🔍", bg=BG_CARD, fg=TEXT_SECONDARY).pack(side="left")
+        search = tk.Entry(tools, textvariable=self._app_search_var, font=FONT_BODY, bg=BG_CARD_BORDER, 
+                          fg=TEXT_PRIMARY, relief="flat", insertbackground="white", width=30)
+        search.pack(side="left", padx=10, ipady=3)
+        
+        DarkButton(tools, "🔄 Aggiorna Elenco", self._refresh_installed_apps, style="normal").pack(side="right")
+
+        self._uninst_list_fr = tk.Frame(uninst_body, bg=BG_CARD)
+        self._uninst_list_fr.pack(fill="x", padx=14, pady=(0, 15))
+        
+        # Carica automaticamente al primo accesso
+        self.root.after(500, self._refresh_installed_apps)
+
+    def _refresh_installed_apps(self):
+        if self.operation_running: return
+        self.status_var.set("Scansione app in corso...")
+        self._log("Avvio scansione applicazioni installate...", "info")
+        
+        def _task():
+            # Aumentiamo la tolleranza: a volte winget è lento a rispondere
+            self.root.after(0, self.status_var.set, "Interrogazione Winget in corso...")
+            ok, out = run_script("get_installed_apps.ps1")
+            
+            apps = []
+            if out:
+                for line in out.splitlines():
+                    if "|" in line:
+                        name, pkg_id = line.split("|", 1)
+                        apps.append({"name": name.strip(), "id": pkg_id.strip()})
+            
+            self._installed_apps = sorted(apps, key=lambda x: x["name"].lower())
+            self.root.after(0, self._render_installed_list)
+
+            if not apps:
+                self._log("Scansione completata: nessuna app rilevata tramite Winget. Prova ad aggiornare manualmente.", "warn")
+            self.root.after(0, self.status_var.set, "Pronto")
+        threading.Thread(target=_task, daemon=True).start()
+
+    def _render_installed_list(self):
+        for w in self._uninst_list_fr.winfo_children(): w.destroy()
+        search_term = self._app_search_var.get().lower()
+        
+        count = 0
+        for app in self._installed_apps:
+            if search_term and search_term not in app["name"].lower() and search_term not in app["id"].lower():
+                continue
+            
+            row = tk.Frame(self._uninst_list_fr, bg=BG_CARD, pady=4)
+            row.pack(fill="x")
+            tk.Label(row, text="• " + app["name"], font=FONT_BODY, bg=BG_CARD, fg=TEXT_PRIMARY, anchor="w").pack(side="left", fill="x", expand=True)
+            tk.Label(row, text=app["id"], font=FONT_TINY, bg=BG_CARD, fg=TEXT_TERTIARY).pack(side="left", padx=10)
+            DarkButton(row, "Disinstalla", lambda a=app: self._run_action(f"Rimozione {a['name']}", ["uninstall_app.ps1", a['id']]), 
+                       style="danger").pack(side="right")
+            tk.Frame(self._uninst_list_fr, bg=SEPARATOR, height=1).pack(fill="x")
+            
+            count += 1
+            if count > 50: # Limite per performance, usa la ricerca per trovarne altre
+                tk.Label(self._uninst_list_fr, text="...usa la ricerca per vedere altre app...", 
+                         font=FONT_SMALL, bg=BG_CARD, fg=TEXT_TERTIARY).pack(pady=5)
+                break
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # TAB: Debloat
+    # ─────────────────────────────────────────────────────────────────────────
+    def _tab_debloat(self, parent):
+        self._page_header(parent, "Windows Debloat", "Rimuovi app preinstallate e telemetria inutile")
+        sf = self._scrollable(parent)
+        sf.columnconfigure(0, weight=1)
+        
+        # Sidebar vars per debloat
+        self._debloat_vars = {}
+        
+        db_out, db_body = self._card(sf, "🚀  Ottimizzazione Sistema")
+        db_out.grid(row=0, column=0, sticky="ew")
+        
+        actions = [
+            ("Rimuovi Bloatware Windows", "Disinstalla app come Candy Crush, Xbox (se inutilizzato), e app meteo.", "debloat_system.ps1"),
+            ("Disabilita Telemetria", "Blocca l'invio di dati diagnostici a Microsoft per privacy e velocità.", "disable_telemetry.ps1"),
+            ("Rimuovi OneDrive", "Disinstalla completamente OneDrive se non lo usi.", "remove_onedrive.ps1")
+        ]
+        
+        for title, desc, script in actions:
+            f = tk.Frame(db_body, bg=BG_CARD, pady=10)
+            f.pack(fill="x", padx=14)
+            tk.Label(f, text=title, font=FONT_HEADING, bg=BG_CARD, fg=TEXT_PRIMARY).pack(anchor="w")
+            tk.Label(f, text=desc, font=FONT_SMALL, bg=BG_CARD, fg=TEXT_SECONDARY, wraplength=600, justify="left").pack(anchor="w")
+            DarkButton(f, "Esegui", lambda s=script: self._run_action(title, [s])).pack(anchor="w", pady=(5,0))
+            tk.Frame(db_body, bg=SEPARATOR, height=1).pack(fill="x", pady=5)
+
+        # Selective Debloat Card
+        sel_out, sel_body = self._card(sf, "📦  Rimozione Selettiva App")
+        sel_out.grid(row=1, column=0, sticky="ew", pady=(14, 0))
+        
+        tk.Label(sel_body, text="Seleziona le app di sistema che desideri rimuovere:", 
+                 font=FONT_BODY, bg=BG_CARD, fg=TEXT_SECONDARY).pack(anchor="w", padx=14, pady=10)
+        
+        apps_frame = tk.Frame(sel_body, bg=BG_CARD)
+        apps_frame.pack(fill="x", padx=14)
+        
+        debloat_list = [
+            ("Meteo", "Microsoft.BingWeather"), ("Notizie", "Microsoft.BingNews"),
+            ("Mappe", "Microsoft.WindowsMaps"), ("Xbox App", "Microsoft.XboxApp"),
+            ("Solitario", "Microsoft.MicrosoftSolitaireCollection"), ("Skype", "Microsoft.SkypeApp"),
+            ("Office Hub", "Microsoft.MicrosoftOfficeHub"), ("Film e TV", "Microsoft.ZuneVideo"),
+            ("Musica Groove", "Microsoft.ZuneMusic"), ("Suggerimenti", "Microsoft.GetStarted"),
+            ("Il tuo Telefono", "Microsoft.YourPhone"), ("Feedback Hub", "Microsoft.WindowsFeedbackHub")
+        ]
+        
+        for i, (name, pkg) in enumerate(debloat_list):
+            var = tk.BooleanVar()
+            self._debloat_vars[pkg] = var
+            col = i % 2
+            row = i // 2
+            cb = tk.Checkbutton(apps_frame, text=name, variable=var, font=FONT_SMALL,
+                                bg=BG_CARD, fg=TEXT_PRIMARY, selectcolor=BG_ROOT,
+                                activebackground=BG_CARD, activeforeground=TEXT_PRIMARY,
+                                highlightthickness=0, bd=0)
+            cb.grid(row=row, column=col, sticky="w", padx=10, pady=2)
+
+        btn_fr = tk.Frame(sel_body, bg=BG_CARD)
+        btn_fr.pack(fill="x", padx=14, pady=15)
+        DarkButton(btn_fr, "🗑️  Disinstalla App Selezionate", self._do_selective_debloat, style="danger").pack(side="left")
+
+    def _do_selective_debloat(self):
+        selected = [pkg for pkg, var in self._debloat_vars.items() if var.get()]
+        if not selected:
+            messagebox.showinfo("Info", "Seleziona almeno un'app da rimuovere.")
+            return
+        if messagebox.askyesno("Conferma", f"Sei sicuro di voler rimuovere {len(selected)} applicazioni di sistema?"):
+            # Passiamo l'elenco dei pacchetti come argomenti allo script
+            self._run_action("Rimozione Selettiva Bloatware", ["remove_selected_apps.ps1"] + selected)
+
     def _opt_card(self, parent, o):
-        card = tk.Frame(parent, bg=BG_PANEL,
-                        highlightthickness=1, highlightbackground=BORDER)
-        # Title row — pack inside card
-        top = tk.Frame(card, bg=BG_PANEL)
-        top.pack(fill="x", padx=14, pady=(12, 4))
-        tk.Label(top, text=o["badge"], font=("Segoe UI", 7, "bold"),
-                 bg=o["badge_color"], fg="white", padx=5, pady=1).pack(side="right")
+        card = tk.Frame(parent, bg=BG_CARD,
+                        highlightbackground=BG_CARD_BORDER, highlightthickness=1)
+        top = tk.Frame(card, bg=BG_CARD)
+        top.pack(fill="x", padx=14, pady=(14, 6))
+        # Badge
+        badge_fr = tk.Frame(top, bg=o["badge_color"])
+        badge_fr.pack(side="right")
+        tk.Label(badge_fr, text=o["badge"], font=FONT_TINY,
+                 bg=o["badge_color"], fg="white", padx=6, pady=2).pack()
+        # Icon + title
+        tk.Label(top, text=o["icon"], font=("Segoe UI", 14), bg=BG_CARD,
+                 fg=TEXT_PRIMARY).pack(side="left", padx=(0, 8))
         tk.Label(top, text=o["title"], font=FONT_HEADING,
-                 bg=BG_PANEL, fg=TEXT_PRIMARY).pack(side="left")
-        tk.Label(card, text=o["desc"], font=FONT_BODY, bg=BG_PANEL, fg=TEXT_SECONDARY,
-                 wraplength=380, justify="left", anchor="nw").pack(
-            anchor="w", padx=14, pady=(0, 8))
-        btn_bg = ACCENT if o["id"] == "boost_all" else BG_CARD_DARK # "Esegui"
-        btn_fg = TEXT_ON_DARK if o["id"] == "boost_all" else TEXT_PRIMARY
-        self._btn(card, "Run", o["action"], btn_bg, btn_fg).pack(
+                 bg=BG_CARD, fg=TEXT_PRIMARY).pack(side="left")
+        tk.Frame(card, bg=SEPARATOR, height=1).pack(fill="x")
+        tk.Label(card, text=o["desc"], font=FONT_BODY, bg=BG_CARD,
+                 fg=TEXT_SECONDARY, wraplength=370, justify="left").pack(
+            anchor="w", padx=14, pady=10)
+        style = "accent" if o["id"] == "boost_all" else "normal"
+        DarkButton(card, "▶  Esegui", o["action"], style=style).pack(
             anchor="w", padx=14, pady=(0, 12))
         return card
 
@@ -632,93 +1214,64 @@ class CoreTuneApp:
     # TAB: Monitor
     # ─────────────────────────────────────────────────────────────────────────
     def _tab_monitor(self, parent):
-        self._page_header(parent, "Monitor di Sistema", "Monitoraggio hardware e prestazioni in tempo reale")
+        self._page_header(parent, "Prestazioni", "Monitoraggio hardware in tempo reale")
         sf = self._scrollable(parent)
         sf.columnconfigure(0, weight=1)
 
-        # Live gauges
-        g_outer, g_body = self._section(sf, "Metriche in Tempo Reale")
-        g_outer.grid(row=0, column=0, pady=(0, 12), sticky="ew")
-        for i in range(4):
-            g_body.columnconfigure(i, weight=1)
+        # ── Live metric tiles ──
+        live_fr = tk.Frame(sf, bg=BG_MAIN)
+        live_fr.grid(row=0, column=0, sticky="ew", pady=(0, 14))
+        for i in range(4): live_fr.columnconfigure(i, weight=1)
 
-        self._mon_gauges = {}
-        for col, (key, lbl, unit, color) in enumerate([
-            ("cpu",  "CPU",       "%",  ACCENT), # "Disco (C:)"
-            ("ram",  "RAM",       "%",  SUCCESS),
-            ("disk", "Disk (C:)", "%",  WARNING),
-            ("temp", "CPU Temp",  "°C", DANGER),
-        ]):
-            self._mon_gauges[key] = self._gauge(g_body, lbl, unit, color, col)
+        self._mon_tiles = {}
+        tile_defs = [
+            ("🔲", "Processore",  "—", ACCENT,      "cpu"),
+            ("🎮", "Scheda video","—", "#9b59b6",   "gpu"),
+            ("🧠", "Memoria",     "—", SUCCESS_TEXT,"ram"),
+            ("🌡", "Temperatura", "—", DANGER,      "temp"),
+        ]
+        for i, (icon, label, val, color, key) in enumerate(tile_defs):
+            px = (0, 6) if i == 0 else (3, 3) if i < 3 else (6, 0)
+            t = InfoTile(live_fr, icon, label, val, accent=color)
+            t.grid(row=0, column=i, padx=px, sticky="ew")
+            self._mon_tiles[key] = t
 
-        # Component details
-        d_outer, d_body = self._section(sf, "Dettagli Componenti") # "Temp CPU"
-        d_outer.grid(row=1, column=0, pady=(0, 12), sticky="ew") # "Utilizzo CPU"
-        d_body.columnconfigure(0, weight=1)
-        d_body.columnconfigure(1, weight=1)
+        # ── CPU history graph ──
+        hist_out, hist_body = self._card(sf, "📈  Cronologia CPU (finestra 2 min)")
+        hist_out.grid(row=1, column=0, sticky="ew", pady=(0, 14))
+        self._cpu_canvas = tk.Canvas(hist_body, height=90, bg="#0d0d0d",
+                                     highlightthickness=0)
+        self._cpu_canvas.pack(fill="x", padx=14, pady=12)
 
-        left  = tk.Frame(d_body, bg=BG_PANEL)
-        right = tk.Frame(d_body, bg=BG_PANEL)
+        # ── Component details ──
+        det_out, det_body = self._card(sf, "🔧  Dettagli Componenti")
+        det_out.grid(row=2, column=0, sticky="ew", pady=(0, 14))
+        det_body.columnconfigure(0, weight=1)
+        det_body.columnconfigure(1, weight=1)
+
+        left  = tk.Frame(det_body, bg=BG_CARD)
+        right = tk.Frame(det_body, bg=BG_CARD)
         left.grid(row=0, column=0, sticky="nsew", padx=(14, 7), pady=10)
         right.grid(row=0, column=1, sticky="nsew", padx=(7, 14), pady=10)
-        left.columnconfigure(1, weight=1)
-        right.columnconfigure(1, weight=1)
 
         self._mon_det = {}
-        left_rows = [
-            ("cpu_pct",  "Utilizzo CPU"),
-            ("cpu_name", "Modello CPU"),
-            ("cpu_temp", "Temperatura CPU"),
-            ("procs",    "Processi"),
-        ]
-        right_rows = [
-            ("ram_pct",    "Utilizzo RAM"),
-            ("ram_det",    "RAM Usata/Totale"),
-            ("disk_pct",   "Utilizzo Disco"),
-            ("disk_det",   "Disco Usato/Totale"),
-            ("uptime",     "Tempo di Attività"),
-        ]
+        left_rows  = [("cpu_pct","Utilizzo CPU"),("cpu_name","Modello CPU"),
+                      ("cpu_temp","Temperatura CPU"),("procs","Processi attivi")]
+        right_rows = [("ram_pct","Utilizzo RAM"),("ram_det","RAM Usata/Totale"),
+                      ("disk_pct","Utilizzo Disco"),("disk_det","Disco Usato/Totale"),
+                      ("uptime","Uptime")]
         for frame, rows in [(left, left_rows), (right, right_rows)]:
-            for r, (key, label) in enumerate(rows):
-                tk.Label(frame, text=label + ":", font=FONT_BODY,
-                         bg=BG_PANEL, fg=TEXT_SECONDARY).grid(row=r, column=0, sticky="w", pady=3)
-                lbl = tk.Label(frame, text="—", font=("Segoe UI", 9, "bold"),
-                               bg=BG_PANEL, fg=TEXT_PRIMARY)
-                lbl.grid(row=r, column=1, sticky="w", padx=10, pady=3)
-                self._mon_det[key] = lbl
-
-        # CPU history
-        h_outer, h_body = self._section(sf, "Cronologia CPU (finestra 2 min)")
-        h_outer.grid(row=2, column=0, pady=(0, 12), sticky="ew")
-        self._cpu_canvas = tk.Canvas(h_body, height=80, bg="#1e1e1e", highlightthickness=0)
-        self._cpu_canvas.pack(fill="x", padx=14, pady=10)
-
-    def _gauge(self, parent, label, unit, color, col):
-        fr = tk.Frame(parent, bg=BG_PANEL)
-        fr.grid(row=0, column=col, padx=14, pady=10, sticky="ew")
-        tk.Label(fr, text=label, font=FONT_SMALL, bg=BG_PANEL, fg=TEXT_SECONDARY).pack() # "N/D"
-        vl = tk.Label(fr, text="—", font=("Segoe UI", 20, "bold"), bg=BG_PANEL, fg=color)
-        vl.pack()
-        tk.Label(fr, text=unit, font=FONT_SMALL, bg=BG_PANEL, fg=TEXT_TERTIARY).pack()
-        bar_bg = tk.Frame(fr, bg=BORDER, height=6)
-        bar_bg.pack(fill="x", pady=(4, 0))
-        bar    = tk.Frame(bar_bg, bg=color, height=6)
-        bar.place(x=0, y=0, relheight=1, relwidth=0)
-        fr._vl = vl; fr._bar = bar; fr._bar_bg = bar_bg; fr._color = color
-        return fr
-
-    def _update_gauge(self, g, val, is_pct=True):
-        if val is None:
-            g._vl.configure(text="N/A"); return
-        g._vl.configure(text=f"{val:.1f}")
-        if is_pct:
-            g._bar.place_configure(relwidth=max(0.0, min(1.0, val / 100.0)))
-            color = DANGER if val >= 85 else (WARNING if val >= 65 else g._color)
-            g._vl.configure(fg=color); g._bar.configure(bg=color)
+            frame.columnconfigure(1, weight=1)
+            for r, (key, lbl) in enumerate(rows):
+                tk.Label(frame, text=lbl + ":", font=FONT_SMALL, bg=BG_CARD,
+                         fg=TEXT_TERTIARY).grid(row=r, column=0, sticky="w", pady=4, padx=(0,8))
+                v = tk.Label(frame, text="—", font=("Segoe UI", 9, "bold"),
+                             bg=BG_CARD, fg=TEXT_PRIMARY)
+                v.grid(row=r, column=1, sticky="w", pady=4)
+                self._mon_det[key] = v
 
     def _draw_history(self):
-        c = self._cpu_canvas
-        c.update_idletasks()
+        c = self._cpu_canvas; c.update_idletasks()
         w, h = c.winfo_width(), c.winfo_height()
         if w <= 1: return
         c.delete("all")
@@ -727,78 +1280,88 @@ class CoreTuneApp:
         step = w / (len(data) - 1)
         pts = []
         for i, v in enumerate(data):
-            pts.extend([i * step, h - (v / 100.0) * (h - 4) - 2])
+            pts.extend([i * step, h - (v / 100.0) * (h - 8) - 4])
         if len(pts) >= 4:
-            c.create_line(*pts, fill=ACCENT, width=1.5, smooth=True)
-        for pct, clr in [(50, "#444"), (80, "#663")]:
-            y = h - (pct / 100.0) * (h - 4) - 2
-            c.create_line(0, y, w, y, fill=clr, dash=(3, 4))
-            c.create_text(4, y - 6, text=f"{pct}%", fill="#666", anchor="w",
-                          font=("Consolas", 7))
+            # Fill under curve
+            fill_pts = [0, h] + pts + [w, h]
+            c.create_polygon(*fill_pts, fill="#0d2a45", outline="")
+            c.create_line(*pts, fill=ACCENT, width=2, smooth=True)
+        for pct, clr in [(50, "#1a3a4a"), (80, "#3a2a1a")]:
+            y = h - (pct / 100.0) * (h - 8) - 4
+            c.create_line(0, y, w, y, fill=clr, dash=(4, 4))
+            c.create_text(6, y - 7, text=f"{pct}%", fill=TEXT_TERTIARY,
+                          anchor="w", font=("Consolas", 7))
 
     # ─────────────────────────────────────────────────────────────────────────
     # TAB: Diagnostics
     # ─────────────────────────────────────────────────────────────────────────
     def _tab_diagnostics(self, parent):
-        self._page_header(parent, "Diagnostica", "Ispeziona lo stato del sistema ed esegui controlli diagnostici")
+        self._page_header(parent, "Diagnostica", "Controlli integrità del sistema")
         sf = self._scrollable(parent)
         sf.columnconfigure(0, weight=1)
 
-        c_outer, c_body = self._section(sf, "Controlli di Integrità del Sistema")
-        c_outer.grid(row=0, column=0, pady=(0, 12), sticky="ew")
-        c_body.columnconfigure(0, weight=1)
+        c_out, c_body = self._card(sf, "🔍  Controlli di Integrità")
+        c_out.grid(row=0, column=0, pady=(0, 12), sticky="ew")
 
         self._diag_rows = {}
         checks = [
-            ("powershell", "PowerShell Disponibile",  self._chk_powershell),
-            ("scripts",    "Directory Script",      self._chk_scripts),
-            ("psutil",     "Monitoraggio psutil",      self._chk_psutil),
+            ("powershell", "PowerShell Disponibile", self._chk_powershell),
+            ("scripts",    "Directory Script",        self._chk_scripts),
+            ("psutil",     "Monitoraggio psutil",     self._chk_psutil),
             ("winver",     "Versione Windows",        self._chk_winver),
-            ("diskspace",  "Spazio su Disco (C:)",        self._chk_diskspace),
-            ("tempsize",   "Dimensione Directory Temp",    self._chk_tempsize),
+            ("diskspace",  "Spazio su Disco (C:)",    self._chk_diskspace),
+            ("tempsize",   "Dimensione Directory Temp",self._chk_tempsize),
         ]
         for r, (key, label, fn) in enumerate(checks):
-            row = tk.Frame(c_body, bg=BG_PANEL)
-            row.grid(row=r, column=0, sticky="ew", padx=14, pady=3)
-            row.columnconfigure(1, weight=1)
-            dot = tk.Label(row, text="●", font=("Segoe UI", 10),
-                           bg=BG_PANEL, fg=TEXT_TERTIARY)
-            dot.grid(row=0, column=0, padx=(0, 8))
+            row = tk.Frame(c_body, bg=BG_CARD,
+                           highlightbackground=SEPARATOR, highlightthickness=1)
+            row.pack(fill="x", padx=14, pady=2)
+            row.columnconfigure(2, weight=1)
+            # Status dot
+            dot = tk.Label(row, text="●", font=("Segoe UI", 9),
+                           bg=BG_CARD, fg=TEXT_TERTIARY, width=2)
+            dot.pack(side="left", padx=(10, 4), pady=8)
             tk.Label(row, text=label, font=FONT_BODY,
-                     bg=BG_PANEL, fg=TEXT_PRIMARY, anchor="w").grid(row=0, column=1, sticky="w")
-            det = tk.Label(row, text="Not checked", font=FONT_SMALL,
-                           bg=BG_PANEL, fg=TEXT_TERTIARY, anchor="e") # "Non controllato"
-            det.grid(row=0, column=2, sticky="e")
+                     bg=BG_CARD, fg=TEXT_PRIMARY).pack(side="left", pady=8)
+            det = tk.Label(row, text="Non controllato", font=FONT_SMALL,
+                           bg=BG_CARD, fg=TEXT_TERTIARY)
+            det.pack(side="right", padx=12, pady=8)
             self._diag_rows[key] = (dot, det, fn)
 
-        tk.Frame(c_body, bg=BG_PANEL, height=8).grid(row=len(checks), column=0)
-        bf = tk.Frame(c_body, bg=BG_PANEL)
-        bf.grid(row=len(checks)+1, column=0, sticky="w", padx=14, pady=(0, 12)) # "Esegui Tutti i Controlli"
-        self._btn(bf, "Run All Checks", self._run_diag, ACCENT, TEXT_ON_DARK).pack(side="left")
+        tk.Frame(c_body, bg=BG_CARD, height=8).pack()
+        btn_fr = tk.Frame(c_body, bg=BG_CARD)
+        btn_fr.pack(anchor="w", padx=14, pady=(0, 12))
+        DarkButton(btn_fr, "▶  Esegui Tutti i Controlli", self._run_diag,
+                   style="accent").pack(side="left")
+        
+        # Quick Fix Section
+        fix_out, fix_body = self._card(sf, "🛠️  Riparazione Rapida")
+        fix_out.grid(row=2, column=0, pady=(12, 0), sticky="ew")
+        DarkButton(fix_body, "🔧 Ripara File di Sistema (SFC/DISM)", lambda: self._run_action("Riparazione", ["system_fix.ps1"]), style="normal").pack(padx=14, pady=12)
 
-        o_outer, o_body = self._section(sf, "Diagnostic Output")
-        o_outer.grid(row=1, column=0, pady=(0, 12), sticky="nsew")
+        o_out, o_body = self._card(sf, "📋  Output Diagnostica")
+        o_out.grid(row=1, column=0, pady=(0, 12), sticky="nsew")
         sf.rowconfigure(1, weight=1)
         self._diag_out = scrolledtext.ScrolledText(
             o_body, font=FONT_MONO, height=12,
-            bg="#1e1e1e", fg="#d4d4d4", relief="flat", bd=0, state="disabled")
-        self._diag_out.pack(fill="both", expand=True)
+            bg="#0d0d0d", fg="#d4d4d4", relief="flat", bd=0, state="disabled")
+        self._diag_out.pack(fill="both", expand=True, padx=1, pady=1)
 
     def _run_diag(self):
         self._dlog("─" * 60)
-        self._dlog(f"Esecuzione diagnostica — {datetime.datetime.now().strftime('%H:%M:%S')}") # "Diagnostica completata."
-        threading.Thread(target=self._diag_thread, daemon=True).start() # "✓"
+        self._dlog(f"Diagnostica — {datetime.datetime.now().strftime('%H:%M:%S')}")
+        threading.Thread(target=self._diag_thread, daemon=True).start()
 
     def _diag_thread(self):
         for key, (dot, det, fn) in self._diag_rows.items():
-            self.root.after(0, dot.configure, {"fg": WARNING})
+            self.root.after(0, dot.configure, {"fg": WARNING_TEXT})
             ok, msg = fn()
-            color = SUCCESS if ok else DANGER
+            color = SUCCESS_TEXT if ok else DANGER
             self.root.after(0, dot.configure, {"fg": color})
             self.root.after(0, det.configure, {"text": msg, "fg": color})
-            self._dlog(f"{'✓' if ok else '✗'} {msg}") # "✗"
+            self._dlog(f"{'✓' if ok else '✗'} {msg}")
             time.sleep(0.2)
-        self._dlog("Diagnostic complete.")
+        self._dlog("Diagnostica completata.")
 
     def _dlog(self, msg):
         def _do():
@@ -812,14 +1375,14 @@ class CoreTuneApp:
         try:
             r = subprocess.run(["powershell", "-Command", "echo ok"],
                                capture_output=True, text=True, timeout=5)
-            if r.returncode == 0: return True, "PowerShell è disponibile"
+            if r.returncode == 0: return True, "PowerShell disponibile"
         except Exception: pass
         return False, "PowerShell non trovato"
 
     def _chk_scripts(self):
         if os.path.isdir(SCRIPTS_PATH):
             files = [f for f in os.listdir(SCRIPTS_PATH) if f.endswith(".ps1")]
-            return (True, f"Trovato/i {len(files)} script") if files else (False, "Nessuno script .ps1 trovato")
+            return (True, f"Trovati {len(files)} script") if files else (False, "Nessuno script .ps1")
         return False, f"Directory '{SCRIPTS_PATH}' non trovata"
 
     def _chk_psutil(self):
@@ -839,10 +1402,10 @@ class CoreTuneApp:
             if self.monitor._psutil_available:
                 du = self.monitor._psutil.disk_usage("C:\\")
                 free = du.free / 1e9
-                ok = free > 10 # "BASSO"
+                ok = free > 10
                 return ok, f"{free:.1f} GB liberi su C:\\ ({'OK' if ok else 'BASSO'})"
         except Exception: pass
-        return False, "Impossibile leggere le informazioni del disco"
+        return False, "Impossibile leggere info disco"
 
     def _chk_tempsize(self):
         try:
@@ -851,168 +1414,204 @@ class CoreTuneApp:
             for root_, _, files in os.walk(tmp):
                 for f in files:
                     try: total += os.path.getsize(os.path.join(root_, f)); count += 1
-                    except Exception: pass # "Errore: {e}"
+                    except Exception: pass
             mb = total / 1e6
             return mb < 500, f"{mb:.0f} MB in temp ({count} file)"
         except Exception as e:
-            return False, f"Error: {e}"
+            return False, f"Errore: {e}"
 
     # ─────────────────────────────────────────────────────────────────────────
-    # TAB: Tips # "Consigli sulle Prestazioni"
+    # TAB: Tips
     # ─────────────────────────────────────────────────────────────────────────
     def _tab_tips(self, parent):
-        self._page_header(parent, "Consigli sulle Prestazioni", "Guida esperta per mantenere il tuo sistema veloce e sano")
+        self._page_header(parent, "Consigli sulle Prestazioni",
+                          "Guida esperta per mantenere il sistema veloce e sano")
         sf = self._scrollable(parent)
         sf.columnconfigure(0, weight=1)
 
-        # Filter bar # "Filtra:"
-        fbar = tk.Frame(sf, bg=BG_BASE)
-        fbar.grid(row=0, column=0, sticky="ew", pady=(0, 10))
-        tk.Label(fbar, text="Filter:", font=FONT_BODY,
-                 bg=BG_BASE, fg=TEXT_SECONDARY).pack(side="left", padx=(0, 8))
+        # Filter bar
+        fbar = tk.Frame(sf, bg=BG_CARD,
+                        highlightbackground=BG_CARD_BORDER, highlightthickness=1)
+        fbar.grid(row=0, column=0, sticky="ew", pady=(0, 12))
+        tk.Label(fbar, text="  Filtra per categoria:", font=FONT_SMALL,
+                 bg=BG_CARD, fg=TEXT_SECONDARY).pack(side="left", padx=(8, 4), pady=10)
         self._tip_filter = tk.StringVar(value="Tutti")
         for cat in ["Tutti","CPU","RAM","Disco","Rete","GPU","Sicurezza","Generale"]:
-            tk.Radiobutton(fbar, text=cat, variable=self._tip_filter, value=cat,
-                           font=FONT_SMALL, bg=BG_BASE, fg=TEXT_PRIMARY,
-                           selectcolor=ACCENT_LIGHT, activebackground=BG_BASE,
-                           command=self._render_tips).pack(side="left", padx=4)
+            rb = tk.Radiobutton(fbar, text=cat, variable=self._tip_filter, value=cat,
+                                font=FONT_SMALL, bg=BG_CARD, fg=TEXT_SECONDARY,
+                                selectcolor=BG_CARD_BORDER, activebackground=BG_CARD,
+                                activeforeground=TEXT_PRIMARY,
+                                command=self._render_tips)
+            rb.pack(side="left", padx=4, pady=8)
 
-        self._tips_box = tk.Frame(sf, bg=BG_BASE)
+        self._tips_box = tk.Frame(sf, bg=BG_MAIN)
         self._tips_box.grid(row=1, column=0, sticky="ew")
         self._tips_box.columnconfigure(0, weight=1)
         self._render_tips()
 
     def _render_tips(self):
-        for w in self._tips_box.winfo_children():
-            w.destroy()
-        cat_filter = self._tip_filter.get() # "Disco"
-        cat_colors = {"CPU":ACCENT,"RAM":SUCCESS,"Disk":WARNING,"Network":"#007ea7",
-                      "GPU":"#7b2fbe","Security":DANGER,"General":TEXT_SECONDARY}
-        filtered = [(c,t) for c,t in PERFORMANCE_TIPS if cat_filter == "All" or c == cat_filter]
+        for w in self._tips_box.winfo_children(): w.destroy()
+        cat_filter = self._tip_filter.get()
+        cat_colors = {"CPU": ACCENT, "RAM": SUCCESS_TEXT, "Disco": WARNING_TEXT,
+                      "Rete": ACCENT2, "GPU": "#9b59b6", "Sicurezza": DANGER,
+                      "Generale": TEXT_SECONDARY}
+        filtered = [(c, t) for c, t in PERFORMANCE_TIPS
+                    if cat_filter in ("Tutti", "All") or c == cat_filter]
         for r, (cat, tip) in enumerate(filtered):
-            card = tk.Frame(self._tips_box, bg=BG_PANEL,
-                            highlightthickness=1, highlightbackground=BORDER)
+            color = cat_colors.get(cat, TEXT_SECONDARY)
+            card = tk.Frame(self._tips_box, bg=BG_CARD,
+                            highlightbackground=BG_CARD_BORDER, highlightthickness=1)
             card.grid(row=r, column=0, sticky="ew", pady=(0, 6))
             card.columnconfigure(1, weight=1)
-            color = cat_colors.get(cat, TEXT_SECONDARY)
-            tk.Label(card, text=f"  {cat}  ", font=("Segoe UI", 7, "bold"),
-                     bg=color, fg="white").grid(row=0, column=0, padx=(14,10), pady=10, sticky="n")
-            tk.Label(card, text=tip, font=FONT_BODY, bg=BG_PANEL, fg=TEXT_PRIMARY,
-                     wraplength=600, justify="left", anchor="nw").grid(
-                row=0, column=1, sticky="ew", padx=(0,14), pady=10)
+            # Left color bar
+            accent_bar = tk.Frame(card, bg=color, width=3)
+            accent_bar.grid(row=0, column=0, sticky="ns")
+            # Badge
+            badge = tk.Frame(card, bg=color)
+            badge.grid(row=0, column=0, padx=(10, 8), pady=10, sticky="n")
+            tk.Label(badge, text=f" {cat} ", font=FONT_TINY,
+                     bg=color, fg="white").pack()
+            # Tip text
+            tk.Label(card, text=tip, font=FONT_BODY, bg=BG_CARD, fg=TEXT_SECONDARY,
+                     wraplength=620, justify="left").grid(
+                row=0, column=1, sticky="ew", padx=(0, 14), pady=10)
 
     # ─────────────────────────────────────────────────────────────────────────
     # TAB: Log
     # ─────────────────────────────────────────────────────────────────────────
     def _tab_log(self, parent):
-        self._page_header(parent, "Registro Attività", "Cronologia completa di tutte le operazioni di CoreTune")
-        content = tk.Frame(parent, bg=BG_BASE)
-        content.grid(row=1, column=0, sticky="nsew", padx=16, pady=(0, 12))
+        self._page_header(parent, "Registro Attività", "Cronologia completa di tutte le operazioni")
+        content = tk.Frame(parent, bg=BG_MAIN)
+        content.grid(row=1, column=0, sticky="nsew", padx=20, pady=(0, 16))
         content.columnconfigure(0, weight=1)
         content.rowconfigure(1, weight=1)
         parent.rowconfigure(1, weight=1)
 
-        tb = tk.Frame(content, bg=BG_BASE)
-        tb.grid(row=0, column=0, sticky="ew", pady=(0, 6)) # "Cancella Registro"
-        self._btn(tb, "Clear Log", self._clear_log, BG_CARD_DARK, TEXT_PRIMARY).pack(side="right")
+        tb = tk.Frame(content, bg=BG_MAIN)
+        tb.grid(row=0, column=0, sticky="ew", pady=(12, 8))
+        DarkButton(tb, "🗑  Cancella Registro", self._clear_log).pack(side="right")
+
+        log_fr = tk.Frame(content, bg=BG_CARD,
+                          highlightbackground=BG_CARD_BORDER, highlightthickness=1)
+        log_fr.grid(row=1, column=0, sticky="nsew")
+        log_fr.columnconfigure(0, weight=1)
+        log_fr.rowconfigure(0, weight=1)
 
         self._main_log = scrolledtext.ScrolledText(
-            content, font=FONT_MONO, bg="#1e1e1e", fg="#d4d4d4",
-            insertbackground="white", relief="flat", bd=1,
-            highlightthickness=1, highlightbackground=BORDER, state="disabled")
-        self._main_log.grid(row=1, column=0, sticky="nsew")
-        for tag, fg in [("info","#9cdcfe"),("warn","#ce9178"),("error","#f48771"),
-                        ("ok","#4ec9b0"),("ts","#608b4e"),("head","#dcdcaa")]:
+            log_fr, font=FONT_MONO, bg="#0d0d0d", fg="#d4d4d4",
+            insertbackground="white", relief="flat", bd=0, state="disabled")
+        self._main_log.grid(row=0, column=0, sticky="nsew", padx=1, pady=1)
+        for tag, fg in [("info", INFO_TEXT), ("warn", WARNING_TEXT),
+                        ("error", DANGER), ("ok", SUCCESS_TEXT),
+                        ("ts", TEXT_TERTIARY), ("head", "#dcdcaa")]:
             self._main_log.tag_config(tag, foreground=fg)
 
     def _clear_log(self):
         self._main_log.configure(state="normal")
         self._main_log.delete("1.0", "end")
         self._main_log.configure(state="disabled")
-        self._log("Log cleared.", "info")
+        self._log("Registro cancellato.", "info")
 
     # ─────────────────────────────────────────────────────────────────────────
     # TAB: Settings
     # ─────────────────────────────────────────────────────────────────────────
     def _tab_settings(self, parent):
-        self._page_header(parent, "Settings", "Configure CoreTune preferences")
+        self._page_header(parent, "Impostazioni", "Configura le preferenze di CoreTune")
         sf = self._scrollable(parent)
         sf.columnconfigure(0, weight=1)
 
-        s_outer, s_body = self._section(sf, "Scripts Configuration")
-        s_outer.grid(row=0, column=0, pady=(0, 12), sticky="ew")
+        s_out, s_body = self._card(sf, "📁  Configurazione Script")
+        s_out.grid(row=0, column=0, pady=(0, 12), sticky="ew")
         s_body.columnconfigure(1, weight=1)
-        tk.Label(s_body, text="Scripts Directory:", font=FONT_BODY,
-                 bg=BG_PANEL, fg=TEXT_SECONDARY).grid(row=0, column=0, padx=14, pady=10, sticky="w")
+        tk.Label(s_body, text="Directory Script:", font=FONT_BODY,
+                 bg=BG_CARD, fg=TEXT_SECONDARY).grid(row=0, column=0, padx=14, pady=12, sticky="w")
         self._scripts_path_var = tk.StringVar(value=SCRIPTS_PATH)
-        tk.Entry(s_body, textvariable=self._scripts_path_var,
-                 font=FONT_BODY, relief="solid", bd=1).grid(
-            row=0, column=1, padx=(0, 14), pady=10, sticky="ew")
-        tk.Label(s_body, text="Path relative to the app directory (.ps1 scripts).",
-                 font=FONT_SMALL, bg=BG_PANEL, fg=TEXT_TERTIARY).grid(
-            row=1, column=0, columnspan=2, padx=14, pady=(0, 10), sticky="w")
+        entry = tk.Entry(s_body, textvariable=self._scripts_path_var,
+                         font=FONT_BODY, relief="flat", bd=1,
+                         bg=BG_CARD_BORDER, fg=TEXT_PRIMARY, insertbackground=TEXT_PRIMARY)
+        entry.grid(row=0, column=1, padx=(0, 14), pady=12, sticky="ew",
+                   ipady=6)
+        tk.Label(s_body, text="Percorso relativo alla directory dell'app (.ps1).",
+                 font=FONT_SMALL, bg=BG_CARD, fg=TEXT_TERTIARY).grid(
+            row=1, column=0, columnspan=2, padx=14, pady=(0, 12), sticky="w")
 
-        m_outer, m_body = self._section(sf, "Monitoring")
-        m_outer.grid(row=1, column=0, pady=(0, 12), sticky="ew")
-        tk.Label(m_body, text="Background monitoring active — refresh every 2 seconds.",
-                 font=FONT_BODY, bg=BG_PANEL, fg=TEXT_SECONDARY).pack(
-            anchor="w", padx=14, pady=10)
+        m_out, m_body = self._card(sf, "📊  Monitoraggio")
+        m_out.grid(row=1, column=0, pady=(0, 12), sticky="ew")
+        tk.Label(m_body, text="Monitoraggio in background attivo — aggiornamento ogni 2 secondi.",
+                 font=FONT_BODY, bg=BG_CARD, fg=TEXT_SECONDARY).pack(
+            anchor="w", padx=14, pady=12)
 
-        a_outer, a_body = self._section(sf, "About CoreTune")
-        a_outer.grid(row=2, column=0, pady=(0, 12), sticky="ew")
+        a_out, a_body = self._card(sf, "ℹ  Informazioni su CoreTune")
+        a_out.grid(row=2, column=0, pady=(0, 12), sticky="ew")
         a_body.columnconfigure(1, weight=1)
         for r, (k, v) in enumerate([
-            ("Application", f"CoreTune {APP_VERSION}"),
-            ("Developer",   "Aura Studio"),
-            ("Platform",    f"{platform.system()} {platform.release()}"),
-            ("Python",      sys.version.split()[0]),
+            ("Applicazione", f"CoreTune {APP_VERSION}"),
+            ("Sviluppatore", "Aura Studio"),
+            ("Piattaforma",  f"{platform.system()} {platform.release()}"),
+            ("Python",       sys.version.split()[0]),
         ]):
-            tk.Label(a_body, text=k+":", font=FONT_BODY,
-                     bg=BG_PANEL, fg=TEXT_SECONDARY).grid(row=r, column=0, padx=14, pady=4, sticky="w")
-            tk.Label(a_body, text=v, font=("Segoe UI", 9, "bold"),
-                     bg=BG_PANEL, fg=TEXT_PRIMARY).grid(row=r, column=1, padx=8, pady=4, sticky="w")
-        tk.Frame(a_body, bg=BG_PANEL, height=8).grid(row=4, column=0)
+            tk.Label(a_body, text=k + ":", font=FONT_BODY,
+                     bg=BG_CARD, fg=TEXT_SECONDARY).grid(row=r, column=0, padx=14, pady=5, sticky="w")
+            tk.Label(a_body, text=v, font=FONT_HEADING,
+                     bg=BG_CARD, fg=TEXT_PRIMARY).grid(row=r, column=1, padx=8, pady=5, sticky="w")
+        tk.Frame(a_body, bg=BG_CARD, height=8).grid(row=4, column=0)
 
     # ─────────────────────────────────────────────────────────────────────────
     # Actions
     # ─────────────────────────────────────────────────────────────────────────
-    def _run_action(self, name, scripts):
-        if self.operation_running: # "Occupato"
+    def _run_action(self, name, script_list):
+        if self.operation_running:
             messagebox.showwarning("Occupato", "Un'altra operazione è già in esecuzione.")
             return
         self.operation_running = True
-        self.status_var.set(f"In esecuzione: {name}...")
+        self.status_var.set(f"Esecuzione: {name}...")
         self._log("─" * 50, "head")
-        self._log(f"Avvio: {name}", "head")
-        threading.Thread(target=self._action_thread, args=(name, scripts), daemon=True).start()
+        self._log(f"▶ Avvio: {name}", "head")
+        threading.Thread(target=self._action_thread, args=(name, script_list), daemon=True).start()
 
-    def _action_thread(self, name, scripts):
+    def _action_thread(self, name, script_list):
         ok_count = 0
-        for s in scripts:
-            self._log(f"Esecuzione: {s}", "info")
-            ok, _ = run_script(s, log_callback=self._log)
-            if ok:
-                self._log(f"Completato: {s}", "ok"); ok_count += 1
-            else:
-                self._log(f"Problema con: {s}", "warn")
-        self._log(f"Completato: {name} ({ok_count}/{len(scripts)} OK)", "ok")
+        # Determina se è un singolo script con argomenti o una lista di script diversi
+        # Se ci sono più elementi e il secondo NON termina con .ps1, sono argomenti per il primo
+        is_args = len(script_list) > 1 and not script_list[1].lower().endswith(".ps1")
+        
+        if is_args:
+            base = script_list[0]
+            args = script_list[1:]
+            self._log(f"  Esecuzione script: {base}", "info")
+            ok, _ = run_script(base, args=args, log_callback=self._log)
+            if ok: ok_count = 1
+            total = 1
+        else:
+            total = len(script_list)
+            for s in script_list:
+                self._log(f"  Esecuzione: {s}", "info")
+                ok, _ = run_script(s, log_callback=self._log)
+                if ok: ok_count += 1
+        
+        if ok_count == total:
+            self._log(f"✓ Completato: {name}", "ok")
+        else:
+            self._log(f"⚠ Operazione terminata con {total - ok_count} errori", "warn")
+
+        self._log(f"Fine sessione: {name}", "info")
         self.root.after(0, self.status_var.set, "Pronto")
         self.root.after(0, setattr, self, "operation_running", False)
 
     def _do_boost_all(self):
-        self._run_action("Ottimizzazione Completa del Sistema", ["clean_temp.ps1","discord.ps1","performance_mode.ps1"])
+        self._run_action("Ottimizzazione Completa", ["clean_temp.ps1","discord.ps1","performance_mode.ps1"])
     def _do_clean_temp(self):
-        self._run_action("Clean Temp Files", ["clean_temp.ps1"])
+        self._run_action("Pulisci File Temporanei", ["clean_temp.ps1"])
     def _do_discord(self):
-        self._run_action("Discord Cleanup", ["discord.ps1"])
+        self._run_action("Pulizia Discord", ["discord.ps1"])
     def _do_perf_mode(self):
-        self._run_action("Performance Mode", ["performance_mode.ps1"])
+        self._run_action("Modalità Prestazioni", ["performance_mode.ps1"])
     def _open_taskmgr(self):
-        try: # "Gestione Attività avviata"
+        try:
             subprocess.Popen("taskmgr")
-            self._log("Gestione Attività avviata", "ok")
+            self._log("✓ Gestione Attività avviata", "ok")
         except Exception as e:
-            self._log(f"Could not open Task Manager: {e}", "error")
+            self._log(f"Impossibile aprire Gestione Attività: {e}", "error")
 
     # ─────────────────────────────────────────────────────────────────────────
     # Logging
@@ -1038,8 +1637,7 @@ class CoreTuneApp:
             widget.insert("end", msg + "\n", level)
             widget.see("end")
             widget.configure(state="disabled")
-        except Exception:
-            pass
+        except Exception: pass
 
     # ─────────────────────────────────────────────────────────────────────────
     # Monitor callback
@@ -1048,33 +1646,42 @@ class CoreTuneApp:
         self.root.after(0, self._apply_data, data)
 
     def _apply_data(self, data):
-        cpu  = data.get("cpu", 0)
-        ram  = data.get("ram", 0)
+        cpu  = data.get("cpu",  0)
+        ram  = data.get("ram",  0)
         disk = data.get("disk", 0)
+        gpu  = data.get("gpu",  0)
         temp = data.get("cpu_temp")
+        procs= data.get("processes", 0)
 
-        # Dashboard cards
-        if hasattr(self, "_dash_cards"):
-            self._update_metric_card(self._dash_cards["cpu"],  cpu)
-            self._update_metric_card(self._dash_cards["ram"],  ram)
-            self._update_metric_card(self._dash_cards["disk"], disk)
+        # Dashboard gauges
+        if hasattr(self, "_gauges"):
+            self._gauges["cpu"].set_value(cpu)
+            self._gauges["ram"].set_value(ram)
+            self._gauges["disk"].set_value(disk)
+            self._gauges["gpu"].set_value(gpu)
 
-        # Dashboard sysinfo
-        if hasattr(self, "_si_lbls"):
-            self._si_lbls["uptime"].configure(text=data.get("uptime", "—"))
-            self._si_lbls["procs"].configure(text=str(data.get("processes", "—"))) # "N/D"
-            self._si_lbls["temp"].configure(
-                text=f"{temp}°C" if temp is not None else "N/A")
+        # Dashboard system info tiles
+        if hasattr(self, "_si_tiles"):
+            ram_gb = data.get("ram_total", 0)
+            self._si_tiles["Memoria"].update_val(f"{ram_gb:.0f} GB", ram, SUCCESS_TEXT)
+            disk_t = data.get("disk_total", 0)
+            self._si_tiles["Archiviazione"].update_val(f"{disk_t:.0f} GB", disk, WARNING_TEXT)
+            self._si_tiles["Uptime"].update_val(data.get("uptime", "—"))
+            self._si_tiles["Prestazioni"].update_val(f"{(100-cpu):.0f}/100")
 
-        # Monitor gauges
-        if hasattr(self, "_mon_gauges"):
-            self._update_gauge(self._mon_gauges["cpu"],  cpu)
-            self._update_gauge(self._mon_gauges["ram"],  ram)
-            self._update_gauge(self._mon_gauges["disk"], disk)
-            if temp is not None:
-                g = self._mon_gauges["temp"]
-                g._vl.configure(text=f"{temp:.1f}")
-                g._bar.place_configure(relwidth=min(1.0, temp / 100.0)) # "N/D"
+        # Dashboard stat tiles
+        if hasattr(self, "_stat_tiles"):
+            self._stat_tiles["Processi"].update_val(str(procs))
+
+        # Monitor tiles
+        if hasattr(self, "_mon_tiles"):
+            self._mon_tiles["cpu"].update_val(f"{cpu:.0f}%",  cpu,  ACCENT)
+            self._mon_tiles["ram"].update_val(f"{ram:.0f}%",  ram,  SUCCESS_TEXT)
+            self._mon_tiles["gpu"].update_val(f"{gpu:.0f}%",  gpu,  "#9b59b6")
+            temp_str = f"{temp:.0f}°C" if temp else "N/A"
+            self._mon_tiles["temp"].update_val(temp_str)
+            if temp:
+                self._mon_tiles["temp"].update_val(temp_str, min(100, temp), DANGER)
 
         # Monitor details
         if hasattr(self, "_mon_det"):
@@ -1082,24 +1689,24 @@ class CoreTuneApp:
             d["cpu_pct"].configure(text=f"{cpu:.1f}%")
             d["cpu_name"].configure(text=data.get("cpu_name","Unknown")[:50])
             d["cpu_temp"].configure(text=f"{temp}°C" if temp else "N/A")
-            d["procs"].configure(text=str(data.get("processes","—")))
+            d["procs"].configure(text=str(procs))
             d["ram_pct"].configure(text=f"{ram:.1f}%")
-            d["ram_det"].configure(text=f"{data.get('ram_used',0):.2f} / {data.get('ram_total',0):.1f} GB")
+            d["ram_det"].configure(
+                text=f"{data.get('ram_used',0):.2f} / {data.get('ram_total',0):.1f} GB")
             d["disk_pct"].configure(text=f"{disk:.1f}%")
-            d["disk_det"].configure(text=f"{data.get('disk_used',0):.0f} / {data.get('disk_total',0):.0f} GB")
+            d["disk_det"].configure(
+                text=f"{data.get('disk_used',0):.0f} / {data.get('disk_total',0):.0f} GB")
             d["uptime"].configure(text=data.get("uptime","—"))
 
-        # CPU history + graph
+        # CPU history
         self._cpu_history.append(cpu)
-        if len(self._cpu_history) > 120:
-            self._cpu_history.pop(0)
-        if hasattr(self, "_cpu_canvas"):
-            self._draw_history()
+        if len(self._cpu_history) > 120: self._cpu_history.pop(0)
+        if hasattr(self, "_cpu_canvas"): self._draw_history()
 
         # Status bar
+        temp_part = f"  🌡 {temp:.0f}°C" if temp else ""
         self._sb_mon.configure(
-            text=f"CPU {cpu:.0f}%  RAM {ram:.0f}%  Disco {disk:.0f}%"
-                 + (f"  Temp {temp:.0f}°C" if temp else ""))
+            text=f"CPU {cpu:.0f}%   RAM {ram:.0f}%   Disco {disk:.0f}%{temp_part}")
 
     # ─────────────────────────────────────────────────────────────────────────
     # Utility
@@ -1107,7 +1714,7 @@ class CoreTuneApp:
     def _rotate_tip(self):
         if hasattr(self, "_tip_txt_lbl"):
             cat, tip = PERFORMANCE_TIPS[self.tip_index % len(PERFORMANCE_TIPS)]
-            self._tip_cat_lbl.configure(text=f"▸ {cat}")
+            self._tip_cat_lbl.configure(text=f"▸  {cat}")
             self._tip_txt_lbl.configure(text=tip)
             self.tip_index += 1
         self.root.after(15000, self._rotate_tip)
@@ -1125,17 +1732,20 @@ class CoreTuneApp:
 # ─── Entry Point ──────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     root = tk.Tk()
-    root.configure(bg=BG_SIDEBAR)
+    root.configure(bg=BG_ROOT)
     try:
         from ctypes import windll
         windll.shcore.SetProcessDpiAwareness(1)
-    except Exception:
-        pass
-    style = ttk.Style()
-    style.theme_use("clam")
-    style.configure("Vertical.TScrollbar",
-                    background=BG_CARD_DARK, troughcolor=BG_BASE,
-                    bordercolor=BORDER, arrowcolor=TEXT_SECONDARY, relief="flat")
+        # Enable dark title bar on Windows 11
+        try:
+            DWMWA_USE_IMMERSIVE_DARK_MODE = 20
+            windll.dwmapi.DwmSetWindowAttribute(
+                windll.user32.GetForegroundWindow(),
+                DWMWA_USE_IMMERSIVE_DARK_MODE,
+                byref(c_int(1)), sizeof(c_int))
+        except Exception: pass
+    except Exception: pass
+
     app = CoreTuneApp(root)
     root.protocol("WM_DELETE_WINDOW", app.on_close)
     root.mainloop()
